@@ -1,7 +1,7 @@
 // Handle uploads
 
 function uploadAttachment(host, attachment) {
-  uploadFile(host, attachment.file, setProgress, setAttributes);
+  uploadFile(host, attachment, setProgress, setAttributes);
 
   function setProgress(progress) {
     attachment.setUploadProgress(progress);
@@ -22,9 +22,8 @@ document.addEventListener("DOMContentLoaded", function(event) {
   });
 });
 
-function uploadFile(host, file, progressCallback, successCallback) {
-  var key = createStorageKey(file);
-  var formData = createFormData(key, file);
+function uploadFile(host, attachment, progressCallback, successCallback) {
+  var formData = createFormData(attachment.file);
   var xhr = new XMLHttpRequest();
 
   const csrfToken = document.querySelector("input[name=csrfmiddlewaretoken]").value;
@@ -48,21 +47,23 @@ function uploadFile(host, file, progressCallback, successCallback) {
       };
       successCallback(attributes);
     }
+    if (xhr.status == 400) {
+      const data = JSON.parse(xhr.response);
+      alert(data.error);
+      attachment.remove();
+    }
+    else {
+      alert("The upload failed.");
+      attachment.remove();
+    }
+
   });
 
   xhr.send(formData);
 }
 
-function createStorageKey(file) {
-  var date = new Date();
-  var day = date.toISOString().slice(0,10);
-  var name = date.getTime() + "-" + file.name;
-  return [day, name].join("/");
-}
-
-function createFormData(key, file) {
+function createFormData(file) {
   var data = new FormData();
-  data.append("key", key);
   data.append("file", file);
   data.append("Content-Type", file.type);
   return data;
