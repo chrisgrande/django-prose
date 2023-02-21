@@ -7,11 +7,11 @@ class RichTextEditor(Textarea):
     class Media:
         css = {
             "all": (
-                "https://cdnjs.cloudflare.com/ajax/libs/trix/1.3.0/trix.css",
+                "prose/trix.css",
                 "prose/editor.css",
             ),
         }
         js = (
-            "https://cdnjs.cloudflare.com/ajax/libs/trix/1.3.0/trix.js",
+            "prose/trix.umd.min.js",
             "prose/editor.js",
         )

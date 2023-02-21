@@ -40,6 +40,8 @@ ALLOWED_ATTRIBUTES = [
     "srcset",
     "href",
     "media",
+    "data-trix-attachment",
+    "data-trix-attributes",
 ]
 
 
