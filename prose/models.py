@@ -44,13 +44,14 @@ class Attachment(models.Model):
     filename = models.CharField(max_length=120)
     content_type = models.CharField(max_length=120)
     byte_size = models.PositiveIntegerField()
-    metadata = models.JSONField()
+    metadata = models.TextField()
+    Document = models.ForeignKey(
+        "Document", on_delete=models.CASCADE, related_name="attachments"
+    )
 
     # Save orignal filename, content type, and byte size
     def save(self, *args, **kwargs):
         self.filename = self.file.name
-        self.content_type = self.file.content_type
-        self.byte_size = self.file.size
         super().save(*args, **kwargs)
 
     def __str__(self):
