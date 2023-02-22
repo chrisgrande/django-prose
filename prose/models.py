@@ -1,3 +1,6 @@
+from datetime import datetime
+import os
+import uuid
 from django.db import models
 from django.utils.html import strip_tags
 
@@ -20,6 +23,38 @@ class AbstractDocument(models.Model):
 
     class Meta:
         abstract = True
+
+
+def upload_to(instance, filename):
+    # Generate a random filename
+    ext = filename.split(".")[-1]
+    filename = f"{uuid.uuid4().hex}.{ext}"
+
+    # Organize the files by date
+    now = datetime.now()
+    folder_name = now.strftime("%Y/%m/%d")
+
+    # Return the upload path
+    return os.path.join("attachments", folder_name, filename)
+
+
+class Attachment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    file = models.FileField(upload_to=upload_to)
+    filename = models.CharField(max_length=120)
+    content_type = models.CharField(max_length=120)
+    byte_size = models.PositiveIntegerField()
+    metadata = models.JSONField()
+
+    # Save orignal filename, content type, and byte size
+    def save(self, *args, **kwargs):
+        self.filename = self.file.name
+        self.content_type = self.file.content_type
+        self.byte_size = self.file.size
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.filename
 
 
 class Document(AbstractDocument):
