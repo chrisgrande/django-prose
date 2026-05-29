@@ -5,7 +5,7 @@ from django.forms.widgets import Textarea
 
 from prose.content import hydrate_editor_attachments
 
-LEXXY_VERSION = "0.9.9-beta-preview1"
+LEXXY_VERSION = "0.9.14-beta"
 LEXXY_STYLESHEET_URL = (
     f"https://unpkg.com/@37signals/lexxy@{LEXXY_VERSION}/dist/stylesheets/lexxy.css"
 )
