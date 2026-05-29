@@ -2,7 +2,7 @@
   "name": "django-prose",
   "version": "2.1.0",
   "description": "Wonderful rich-text editing for Django",
-  "main": "prose/static/prose/editor.js",
+  "main": "prose/static/prose/lexxy-loader.js",
   "repository": "https://github.com/withlogicco/django-prose.git",
   "author": "Paris Kasidiaris <paris@withlogic.co>",
   "license": "MIT",

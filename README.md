@@ -134,13 +134,22 @@ Django Prose can also handle uploading attachments with drag and drop. To set th
 
 - [x] Set up the `MEDIA_ROOT` and `MEDIA_URL` of your Django project (example in [`example/example/settings.py`](https://github.com/withlogicco/django-prose/blob/9e24cc794eae6db48818dd15a483d106d6a99da0/example/example/settings.py#L130-L131)))
 - [x] Include the Django Prose URLs (example in [`example/example/urls.py`](https://github.com/withlogicco/django-prose/blob/9e24cc794eae6db48818dd15a483d106d6a99da0/example/example/urls.py#L13-L14))
+- [x] Run migrations so the `Attachment` model is created (`python manage.py migrate prose`)
 - [x] (Optional) Set up a different Django storage to store your files (e.g. S3)
 
-- Attachments are uploaded with a path structure of `/YEAR/MONTH/DATE/UUID.EXT`
+- Attachments are stored in the database (`prose.Attachment`) and referenced in HTML with `<prose-attachment sgid="...">` tags (compatible with [Lexxy](https://basecamp.github.io/lexxy/) and [Action Text](https://guides.rubyonrails.org/action_text_overview.html)-style signed IDs).
+- Files use a path structure of `prose/YEAR/MONTH/DATE/UUID.EXT` in your storage backend.
 - By default, only files 5MB or less are allowed.
-- The upload endpoint returns JSON with `url`, `download_url`, `filename`, `content_type`, `size`, `kind` (`image` or `file`), and `previewable`. Images are inserted as `<figure>` + `<img>`; other files as `<figure>` + `<a>` with a download link.
-- The editor uses Lexxy’s default **file** upload toolbar button (one control for all uploads); uploads are handled by Django, not ActiveStorage.
-- **CSRF:** the page must expose a CSRF token (e.g. `{% csrf_token %}` in the form, or the `csrftoken` cookie readable by JS). The loader sends `csrfmiddlewaretoken` and the `X-CSRFToken` header. If uploads return **400** with a tiny response body, check that the request is valid multipart (do not send a `Content-Type` field inside `FormData`); the package no longer does that.
+- The upload endpoint returns JSON with `sgid`, `url`, `download_url`, `filename`, `content_type`, `size`, `kind` (`image`, `file`, or `embed`), and `previewable`.
+- The editor uses Lexxy’s default **file** upload toolbar button; uploads are handled by Django, not ActiveStorage.
+- **CSRF:** the page must expose a CSRF token (e.g. `{% csrf_token %}` in the form, or the `csrftoken` cookie readable by JS). The loader sends `csrfmiddlewaretoken` and the `X-CSRFToken` header.
+
+**Displaying content:** resolve attachment tags before marking HTML safe:
+
+```django
+{% load prose_attachments %}
+{{ article.body|prose_attachments|safe }}
+```
 
 Allowed file size can be overridden by setting `PROSE_ATTACHMENT_ALLOWED_FILE_SIZE` in your Django project's settings file.
 
@@ -161,6 +170,48 @@ PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES = [
 ]
 ```
 
+### Embeds (YouTube)
+
+Supported URLs (YouTube: `youtube.com`, `youtu.be`, Shorts) can be embedded from the **Link** toolbar popover: enter the URL and click **Embed** when the server recognizes it (`GET /prose/embed/check/`). Pasting a URL only creates a normal link; embedding is never automatic on paste. Embeds are stored as `<prose-attachment>` with a sandboxed `youtube-nocookie.com` player.
+
+Add custom embed providers by implementing a class with `match(url)`, `create_attachment(url)`, and `render_html(attachment)`, then register it in settings:
+
+```python
+PROSE_EMBED_PROVIDERS = [
+    "prose.embeds.youtube.YouTubeEmbedProvider",
+    "myapp.embeds.VimeoEmbedProvider",
+]
+```
+
+### Extensible attachables (mentions, custom embeds)
+
+Use `AttachableMixin` on your own models and register them so rich text can reference them by signed ID (like Action Text attachables):
+
+```python
+from django.db import models
+from prose.attachables import AttachableMixin, registry
+
+class Person(AttachableMixin, models.Model):
+    attachment_name = "mention"
+    name = models.CharField(max_length=100)
+
+    def render_attachment_html(self, *, context="display"):
+        return f'<em class="mention">{self.name}</em>'
+
+# myapp/apps.py
+class MyAppConfig(AppConfig):
+    def ready(self):
+        registry.register(Person.get_attachment_content_type(), Person)
+```
+
+In your form template, add Lexxy prompts with `{% load prose_attachments %}` and `{% attachable_sgid person %}` on each `lexxy-prompt-item` (see [Lexxy inline attachments](https://basecamp.github.io/lexxy/prompts/inline-attachments.html)).
+
+Optional settings:
+
+- `PROSE_PERMITTED_ATTACHMENT_TYPES` — list of MIME / vendor content types allowed in the editor (passed to Lexxy).
+- `PROSE_EMBED_IFRAME_SRC_PREFIXES` — allowed `iframe` `src` prefixes when sanitizing (default: YouTube nocookie embeds).
+- `PROSE_UPLOAD_PERMISSION` — dotted path to a callable `(request) -> bool` for upload/embed authorization.
+
 ### Full example
 
 You can find a full example of a blog, built with Django Prose in the [`example`](./example/) directory.
@@ -171,8 +222,8 @@ As you can see in the examples above, what Django Prose does is provide you with
 
 For this reason Django Prose is using [Bleach](https://bleach.readthedocs.io/en/latest/) to only allow the following tags and attributes:
 
-- **Allowed tags**: `p`, `ul`, `ol`, `li`, `strong`, `em`, `div`, `span`, `a`, `blockquote`, `pre`, `figure`, `figcaption`, `br`, `code`, `h1`, `h2`, `h3`, `h4`, `h5`, `h6`, `picture`, `source`, `img`
-- **Allowed attributes**: `alt`, `class`, `id`, `src`, `srcset`, `href`, `media`, `data-content-type`
+- **Allowed tags**: `p`, `ul`, `ol`, `li`, `strong`, `em`, `div`, `span`, `a`, `blockquote`, `pre`, `figure`, `figcaption`, `br`, `code`, `h1`, `h2`, `h3`, `h4`, `h5`, `h6`, `picture`, `source`, `img`, `prose-attachment`, `iframe`, `del`
+- **Allowed attributes**: `alt`, `class`, `src`, `srcset`, `href`, `media`, `data-content-type`, `sgid`, `content-type`, `filename`, `filesize`, `previewable`, `presentation`, and sandboxed `iframe` attributes (`src` is limited to configured embed prefixes)
 
 ## Screenshots
 

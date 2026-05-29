@@ -4,7 +4,24 @@
     name="{{ widget.name }}"
     class="django-prose-lexxy"
     data-upload-attachment-url="{% url 'prose_upload_attachment' %}"
-    {% if widget.value %}value="{{ widget.value }}"{% endif %}
+    data-embed-url="{% url 'prose_embed' %}"
+    data-embed-check-url="{% url 'prose_embed_check' %}"
+    data-caption-url="{% url 'prose_update_attachment_caption' %}"
+    {% if widget.permitted_attachment_types_json %}data-permitted-attachment-types="{{ widget.permitted_attachment_types_json }}"{% endif %}
     {% if widget.attrs.placeholder %}placeholder="{{ widget.attrs.placeholder }}"{% endif %}
   ></lexxy-editor>
+  {% if widget.value %}
+  {{ widget.value|json_script:widget.initial_script_id }}
+  <script>
+    (function () {
+      var editor = document.getElementById("{{ widget.attrs.id }}")
+      var script = document.getElementById("{{ widget.initial_script_id }}")
+      if (!editor || !script || !script.textContent) return
+      try {
+        var html = JSON.parse(script.textContent)
+        if (html) editor.setAttribute("value", html)
+      } catch (e) {}
+    })()
+  </script>
+  {% endif %}
 </div>

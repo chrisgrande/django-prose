@@ -7,6 +7,10 @@ license = "MIT"
 repository = "https://github.com/withlogicco/django-prose"
 readme = "README.md"
 packages = [{ include = "prose" }]
+include = [
+    "prose/templates/**/*",
+    "prose/static/**/*",
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"
