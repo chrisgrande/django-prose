@@ -1647,7 +1647,38 @@
 
       ensureDocumentUploadHandlers()
 
-      Lexxy.configure({
+      function deepMergeLexxyConfig(target, source) {
+        if (!source || typeof source !== "object") return target
+        for (var key in source) {
+          if (!Object.prototype.hasOwnProperty.call(source, key)) continue
+          var value = source[key]
+          if (
+            value &&
+            typeof value === "object" &&
+            !Array.isArray(value) &&
+            target[key] &&
+            typeof target[key] === "object" &&
+            !Array.isArray(target[key])
+          ) {
+            deepMergeLexxyConfig(target[key], value)
+          } else {
+            target[key] = value
+          }
+        }
+        return target
+      }
+
+      function proseLexxyConfigureFromSettings() {
+        var script = document.getElementById("prose-lexxy-configure")
+        if (!script || !script.textContent) return {}
+        try {
+          return JSON.parse(script.textContent)
+        } catch (e) {
+          return {}
+        }
+      }
+
+      var lexxyConfigure = {
         global: {
           attachmentTagName: "prose-attachment",
           attachmentContentTypeNamespace: "prose",
@@ -1660,7 +1691,13 @@
           // lexxy:file-accept (wildcards supported) via handleDjangoFileAccept.
           permittedAttachmentTypes: null,
         },
-      })
+      }
+      deepMergeLexxyConfig(lexxyConfigure, proseLexxyConfigureFromSettings())
+      lexxyConfigure.global.attachmentTagName = "prose-attachment"
+      lexxyConfigure.global.attachmentContentTypeNamespace = "prose"
+      lexxyConfigure.global.extensions = [DjangoProseExtension]
+
+      Lexxy.configure(lexxyConfigure)
 
       bootstrapInitialValues()
 

@@ -229,25 +229,29 @@ Optional settings:
 
 #### Editor appearance (`PROSE_EDITOR_THEME`)
 
-Override Lexxy CSS variables for the editor chrome (background, borders, toolbar icons, text, accent). Colors apply to the editor wrapper and map to [Lexxy theme variables](https://github.com/basecamp/lexxy).
+Override Lexxy CSS variables for the editor chrome (canvas/background, toolbar, icons, text, tables, highlights, and more). Values are scoped to the editor host and map to [Lexxy theme variables](https://github.com/basecamp/lexxy).
 
 ```python
 PROSE_EDITOR_THEME = {
     "background": "#1e1e1e",
     "border": "#3c3c3c",
+    "toolbar_background": "#2a2a2a",
     "icon": "#e0e0e0",
+    "toolbar_icon_size": "1.2em",
     "text": "#f5f5f5",
     "accent": "#6ea8fe",
 }
 ```
 
-Supported keys: `background`, `border`, `icon`, `text`, `text_subtle`, `accent`, `focus`, `toolbar_background`, `content_background`, `selected`, `link`.
+Common keys: `background` / `canvas`, `border`, `toolbar_background`, `icon` (toolbar icon color), `toolbar_icon_size`, `toolbar_button_size`, `toolbar_gap`, `toolbar_spacing`, `text`, `text_subtle`, `accent`, `focus`, `selected`, `link`, ink/accent scales, table colors, highlight colors (`highlight_1` … `highlight_bg_9`), typography (`font_base`, `font_mono`, `radius`, `shadow`, …).
+
+Any Lexxy variable can also be set with a `lexxy_*` key (e.g. `lexxy_z_popup`) or a raw `--lexxy-*` key.
 
 Per-widget overrides: `RichTextEditor(theme={"background": "#fff"})`.
 
 #### Lexxy behaviour (`PROSE_LEXXY_EDITOR`)
 
-These options are exposed as attributes on `<lexxy-editor>` (Lexxy’s preset API): `attachments`, `markdown`, `multi_line` → `multi-line`, `rich_text` → `rich-text`, `toolbar` (JSON), `highlight` (JSON), and `single_line` → `single-line`.
+These options become attributes on `<lexxy-editor>` (Lexxy’s preset API): `attachments`, `markdown`, `multi_line` → `multi-line`, `rich_text` → `rich-text`, `toolbar` (JSON), `highlight` (JSON), `preset`, `placeholder`, `permitted_attachment_types`, and `single_line` → `single-line`.
 
 ```python
 PROSE_LEXXY_EDITOR = {
@@ -257,10 +261,22 @@ PROSE_LEXXY_EDITOR = {
     "rich_text": True,
     "editable": True,  # False = read-only (toolbar hidden, Lexical not editable)
     "toolbar": {"upload": "file"},
+    "placeholder": "Write something…",
 }
 ```
 
 Per-widget overrides: `RichTextEditor(lexxy={"editable": False})`.
+
+#### Lexxy global / presets (`PROSE_LEXXY_CONFIGURE`)
+
+Advanced options passed to `Lexxy.configure()` (camelCase in JS; use snake_case in settings). Supports `global`, `default`, and custom preset names. django-prose always keeps `prose-attachment` tags and its upload extension; do not override `attachment_tag_name`, `attachment_content_type_namespace`, or `extensions`.
+
+```python
+PROSE_LEXXY_CONFIGURE = {
+    "global": {"authenticated_uploads": True},
+    "default": {"toolbar": {"upload": "both"}},
+}
+```
 
 ### Full example
 

@@ -7,6 +7,7 @@ from prose.attachment_types import get_permitted_attachment_types
 from prose.content import hydrate_editor_attachments
 from prose.editor_settings import (
     build_editor_theme_css,
+    build_lexxy_configure_script,
     build_lexxy_editor_attributes,
     get_editor_theme,
     get_lexxy_editor_options,
@@ -58,6 +59,7 @@ class RichTextEditor(Textarea):
         )
         theme = get_editor_theme(self._theme_override)
         context["widget"]["editor_theme_css"] = build_editor_theme_css(theme)
+        context["widget"]["lexxy_configure_script"] = build_lexxy_configure_script()
         return context
 
     class Media:
