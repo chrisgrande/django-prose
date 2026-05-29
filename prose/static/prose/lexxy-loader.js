@@ -19,6 +19,7 @@
     ppt: "application/vnd.ms-powerpoint",
     pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   }
+
   var MIME_TYPE_LABELS = {
     "application/pdf": "PDF",
     "application/msword": "Word document",
@@ -372,42 +373,85 @@
     })
   }
 
-  function insertEmbed(editorElement, payload) {
-    var html = payload && payload.html
-    if (!html || !payload.sgid || html.indexOf("iframe") === -1) return
+  function lexxyYoutubeProseAttachmentHtml(payload) {
+    var inner = payload && payload.html
+    if (!payload || !payload.sgid || !inner || inner.indexOf("iframe") === -1) return ""
 
+    var attrs = [
+      'sgid="' + escapeHtml(payload.sgid) + '"',
+      'content-type="' + escapeHtml(payload.content_type || YOUTUBE_CONTENT_TYPE) + '"',
+      'content="' + escapeAttributeValue(inner) + '"',
+      'url="' + escapeHtml(payload.url || "") + '"',
+      'filename="' + escapeHtml(payload.filename || "YouTube video") + '"',
+      'filesize="' + escapeHtml(String(payload.size || 0)) + '"',
+      'previewable="true"',
+      'presentation="gallery"',
+    ]
+    return "<prose-attachment " + attrs.join(" ") + "></prose-attachment>"
+  }
+
+  function insertEmbedViaReplaceLink(editorElement, payload) {
     var contents = editorElement.contents
-    if (!contents || typeof contents.replaceNodeWithHTML !== "function") {
-      insertHtml(editorElement, html)
+    var innerHtml = payload && payload.html
+    if (
+      !contents ||
+      !innerHtml ||
+      innerHtml.indexOf("iframe") === -1 ||
+      typeof contents.replaceNodeWithHTML !== "function"
+    ) {
+      return false
+    }
+
+    var url = (payload && payload.url) || ""
+    var attachmentOptions = {
+      sgid: payload.sgid,
+      contentType: payload.content_type || YOUTUBE_CONTENT_TYPE,
+    }
+
+    if (
+      editorElement.selection &&
+      typeof editorElement.selection.placeCursorAtTheEnd === "function"
+    ) {
+      editorElement.selection.placeCursorAtTheEnd()
+    }
+
+    var nodeKey = null
+    if (url && typeof contents.createLink === "function") {
+      nodeKey = contents.createLink(url)
+    }
+    if (!nodeKey) return false
+
+    contents.replaceNodeWithHTML(nodeKey, innerHtml, { attachment: attachmentOptions })
+    return true
+  }
+
+  function insertEmbed(editorElement, payload) {
+    if (!payload || !payload.sgid) return
+    if (!payload.html || payload.html.indexOf("iframe") === -1) return
+
+    if (typeof editorElement.focus === "function") editorElement.focus()
+    editorElement.cachedValue = null
+
+    function finish() {
+      trackSessionUpload(editorElement, payload.sgid)
+    }
+
+    if (insertEmbedViaReplaceLink(editorElement, payload)) {
+      finish()
       return
     }
 
-    var url = payload.url || ""
-    if (!url) return
-
-    if (typeof editorElement.focus === "function") editorElement.focus()
-
-    function replacePlaceholderLink() {
-      var nodeKey = contents.createLink(url)
-      if (
-        !nodeKey &&
-        editorElement.selection &&
-        typeof editorElement.selection.placeCursorAtTheEnd === "function"
-      ) {
-        editorElement.selection.placeCursorAtTheEnd()
-        nodeKey = contents.createLink(url)
+    requestAnimationFrame(function () {
+      if (insertEmbedViaReplaceLink(editorElement, payload)) {
+        finish()
+        return
       }
-      if (nodeKey) {
-        contents.replaceNodeWithHTML(nodeKey, html, {
-          attachment: {
-            sgid: payload.sgid,
-            contentType: payload.content_type || YOUTUBE_CONTENT_TYPE,
-          },
-        })
-      }
-    }
 
-    requestAnimationFrame(replacePlaceholderLink)
+      var html = payload.editor_html || lexxyYoutubeProseAttachmentHtml(payload)
+      if (!html) return
+      insertHtmlNow(editorElement, html)
+      finish()
+    })
   }
 
   function requestEmbed(editorElement, embedHost, url) {
@@ -458,6 +502,19 @@
 
   function wireLinkEmbedButton(toolbar, editorElement, embedHost, checkHost, attempt) {
     attempt = attempt || 0
+    if (!toolbar) {
+      toolbar =
+        editorElement.toolbarElement || editorElement.querySelector("lexxy-toolbar")
+    }
+    if (!toolbar) {
+      if (attempt < 30) {
+        requestAnimationFrame(function () {
+          wireLinkEmbedButton(null, editorElement, embedHost, checkHost, attempt + 1)
+        })
+      }
+      return
+    }
+
     var dropdown = toolbar.querySelector("lexxy-link-dropdown")
     if (!dropdown) {
       if (attempt < 30) {
@@ -468,11 +525,22 @@
       return
     }
     if (dropdown.dataset.djangoProseEmbedWired === "1") return
-    dropdown.dataset.djangoProseEmbedWired = "1"
 
-    var input = dropdown.querySelector('input[type="url"]')
+    var input =
+      dropdown.querySelector('input[type="url"]') ||
+      dropdown.querySelector("input.input") ||
+      dropdown.querySelector("input")
     var actions = dropdown.querySelector(".lexxy-editor__toolbar-dropdown-actions")
-    if (!input || !actions) return
+    if (!input || !actions) {
+      if (attempt < 30) {
+        requestAnimationFrame(function () {
+          wireLinkEmbedButton(toolbar, editorElement, embedHost, checkHost, attempt + 1)
+        })
+      }
+      return
+    }
+
+    dropdown.dataset.djangoProseEmbedWired = "1"
 
     var embedButton = document.createElement("button")
     embedButton.type = "button"
@@ -828,6 +896,11 @@
       bindFileUpload(uploadHost, editorElement)
       wireFileUploadButton(null, editorElement, uploadHost)
     }
+    var embedHost = embedUrlFromEditor(editorElement)
+    var checkHost = embedCheckUrlFromEditor(editorElement)
+    if (embedHost && checkHost) {
+      wireLinkEmbedButton(null, editorElement, embedHost, checkHost)
+    }
     var captionHost = captionUrlFromEditor(editorElement)
     if (captionHost) {
       wireYoutubeCaptions(editorElement, captionHost)
@@ -960,13 +1033,17 @@
 
   function setEditorFormValue(editorElement, html, options) {
     options = options || {}
-    editorElement.cachedValue = null
+    if (options.allowValueReset) {
+      editorElement.cachedValue = null
+      editorElement.value = html
+    } else if (html) {
+      editorElement.cachedValue = html
+    }
     if (editorElement.internals && typeof editorElement.internals.setFormValue === "function") {
       editorElement.internals.setFormValue(html)
       if ("_internalFormValue" in editorElement) editorElement._internalFormValue = html
       return
     }
-    if (options.allowValueReset) editorElement.value = html
   }
 
   function getSessionUploadSgids(editorElement) {
@@ -1014,8 +1091,8 @@
   }
 
   function flushEditorValueForSubmit(editorElement) {
-    editorElement.cachedValue = null
-    var html = editorElement.value || ""
+    syncYoutubeCaptionsToEditorValue(editorElement)
+    var html = editorElement.cachedValue || editorElement.value || ""
     setEditorFormValue(editorElement, html, { allowValueReset: true })
     return html
   }
@@ -1031,7 +1108,10 @@
   function prepareEditorForSave(editorElement) {
     var captionHost = captionUrlFromEditor(editorElement)
     if (captionHost) {
-      syncYoutubeCaptionsToEditorValue(editorElement, { allowValueReset: true })
+      // Sync from live textareas before any Lexxy value reload; allowValueReset in
+      // flushEditorValueForSubmit reparses the DOM and would leave textareas empty
+      // if we saved captions after that reload.
+      syncYoutubeCaptionsToEditorValue(editorElement)
       queryYoutubeCaptionTextareas(editorElement).forEach(function (textarea) {
         saveYoutubeCaption(textarea, captionHost)
       })
@@ -1080,7 +1160,9 @@
       }
     })
 
-    if (changed) setEditorFormValue(editorElement, stripYoutubeDuplicateCaptions(html), options)
+    if (changed) {
+      setEditorFormValue(editorElement, stripYoutubeDuplicateCaptions(html), options)
+    }
     return changed
   }
 
@@ -1145,6 +1227,7 @@
     textarea.dataset.djangoProseCaptionBound = "1"
     textarea.classList.add("django-prose-youtube-caption__input")
     textarea.removeAttribute("readonly")
+    textarea.removeAttribute("disabled")
     if (!textarea.value.trim()) {
       var initialCaption = initialYoutubeCaption(textarea)
       if (initialCaption) textarea.value = initialCaption
@@ -1154,6 +1237,11 @@
 
     textarea.addEventListener("input", function () {
       resizeCaptionInput(textarea)
+      var figure = resolveYoutubeCaptionFigure(textarea)
+      if (!figure) return
+      var value = textarea.value.trim()
+      if (value) figure.setAttribute("data-prose-caption", value)
+      else figure.removeAttribute("data-prose-caption")
     })
     textarea.addEventListener("blur", function () {
       saveYoutubeCaption(textarea, captionHost)
@@ -1164,7 +1252,16 @@
         event.preventDefault()
         event.stopPropagation()
         textarea.blur()
+        return
       }
+      // Lexxy ActionTextAttachmentNode stops all keydown from reaching Lexical;
+      // without this, Backspace/typing are handled by the editor instead of the textarea.
+      event.stopPropagation()
+    })
+    ;["copy", "cut", "paste"].forEach(function (type) {
+      textarea.addEventListener(type, function (event) {
+        event.stopPropagation()
+      })
     })
   }
 
@@ -1478,6 +1575,38 @@
     .then(function (Lexxy) {
       if (!Lexxy || typeof Lexxy.configure !== "function" || !Lexxy.Extension) return
 
+      var YOUTUBE_SANITIZER_ELEMENTS = [
+        "figure",
+        "figcaption",
+        "div",
+        "iframe",
+        "textarea",
+        {
+          tag: "iframe",
+          attributes: [
+            "src",
+            "title",
+            "allow",
+            "allowfullscreen",
+            "referrerpolicy",
+            "loading",
+            "width",
+            "height",
+            "frameborder",
+          ],
+        },
+        {
+          tag: "figure",
+          attributes: ["class", "data-prose-sgid", "data-prose-content-type", "data-prose-caption"],
+        },
+        { tag: "div", attributes: ["class"] },
+        {
+          tag: "textarea",
+          attributes: ["class", "rows", "placeholder", "readonly"],
+        },
+        { tag: "figcaption", attributes: ["class"] },
+      ]
+
       class DjangoProseExtension extends Lexxy.Extension {
         get enabled() {
           return !!(
@@ -1485,6 +1614,11 @@
             embedUrlFromEditor(this.editorElement) ||
             captionUrlFromEditor(this.editorElement)
           )
+        }
+
+        get allowedElements() {
+          if (!embedUrlFromEditor(this.editorElement)) return []
+          return YOUTUBE_SANITIZER_ELEMENTS
         }
 
         constructor(editorElement) {

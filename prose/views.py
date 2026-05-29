@@ -189,11 +189,15 @@ def embed_url(request):
     if attachment is None:
         return JsonResponse({"error": "Could not create embed."}, status=400)
 
+    from prose.content import editor_embed_html
+
     html = provider.render_html(attachment)
+    editor_html = editor_embed_html(attachment)
     return JsonResponse(
         {
             "sgid": attachment.attachable_sgid,
             "html": html,
+            "editor_html": editor_html,
             "attributes": attachment.to_attachment_attributes(),
             **attachment.to_lexxy_json(),
         },

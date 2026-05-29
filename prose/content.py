@@ -83,6 +83,13 @@ def _prose_attachment_element(attachment, *, inner_context="display"):
     return f"<{PROSE_ATTACHMENT_TAG} {attr_str}>{inner}</{PROSE_ATTACHMENT_TAG}>"
 
 
+def editor_embed_html(attachment):
+    """HTML to insert into Lexxy for a newly created embed attachment."""
+    if _is_youtube_attachment(attachment):
+        return _lexxy_editor_youtube_element(attachment)
+    return _prose_attachment_element(attachment, inner_context="editor")
+
+
 def _lexxy_editor_youtube_element(attachment):
     """
     Lexxy editor HTML for YouTube: prose-attachment with a content= attribute

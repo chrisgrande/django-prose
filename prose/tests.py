@@ -244,6 +244,12 @@ class EmbedUrlViewTests(TestCase):
         self.assertIn("Never Gonna Give You Up", data["html"])
         self.assertEqual(data["kind"], "embed")
         self.assertEqual(data["filename"], "Never Gonna Give You Up")
+        self.assertIn("editor_html", data)
+        editor_html = data["editor_html"]
+        self.assertIn('content="', editor_html)
+        self.assertIn("youtube-nocookie.com/embed/", editor_html)
+        self.assertRegex(editor_html, r"<prose-attachment\b[^>]*\bcontent=")
+        self.assertRegex(editor_html, r"</prose-attachment>\s*$")
 
     def test_unsupported_url(self):
         request = self.factory.post(
