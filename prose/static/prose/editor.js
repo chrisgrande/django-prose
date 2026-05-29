@@ -42,7 +42,6 @@ function uploadFile(host, file, progressCallback, successCallback) {
 function createFormData(file) {
   const data = new FormData();
   data.append("file", file);
-  data.append("Content-Type", file.type);
   return data;
 }
 

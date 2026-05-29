@@ -7,11 +7,10 @@ class RichTextEditor(Textarea):
     class Media:
         css = {
             "all": (
-                "https://unpkg.com/trix@2.1.3/dist/trix.css",
+                "https://unpkg.com/@37signals/lexxy@0.9.0-beta/dist/stylesheets/lexxy.css",
                 "prose/editor.css",
             ),
         }
         js = (
-            "https://unpkg.com/trix@2.1.3/dist/trix.umd.min.js",
-            "prose/editor.js",
+            "prose/lexxy-loader.js",
         )

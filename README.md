@@ -113,7 +113,7 @@ Similarly here as well, you need to mark the article's body as `safe`, in order 
 
 ### Forms with rich-text editing
 
-You can create forms for your Django Prose models, to provide rich-text editing functionality. In that case, you will also need to render `form.media`, to load Trix with its stylesheets.
+You can create forms for your Django Prose models, to provide rich-text editing functionality. In that case, you will also need to render `form.media`, to load the Lexxy-based editor and its stylesheets.
 
 ```django
 <form  method="POST" >
@@ -138,6 +138,9 @@ Django Prose can also handle uploading attachments with drag and drop. To set th
 
 - Attachments are uploaded with a path structure of `/YEAR/MONTH/DATE/UUID.EXT`
 - By default, only files 5MB or less are allowed.
+- The upload endpoint returns JSON with `url`, `download_url`, `filename`, `content_type`, `size`, `kind` (`image` or `file`), and `previewable`. Images are inserted as `<figure>` + `<img>`; other files as `<figure>` + `<a>` with a download link.
+- The editor uses Lexxy’s default **file** upload toolbar button (one control for all uploads); uploads are handled by Django, not ActiveStorage.
+- **CSRF:** the page must expose a CSRF token (e.g. `{% csrf_token %}` in the form, or the `csrftoken` cookie readable by JS). The loader sends `csrfmiddlewaretoken` and the `X-CSRFToken` header. If uploads return **400** with a tiny response body, check that the request is valid multipart (do not send a `Content-Type` field inside `FormData`); the package no longer does that.
 
 Allowed file size can be overridden by setting `PROSE_ATTACHMENT_ALLOWED_FILE_SIZE` in your Django project's settings file.
 
@@ -146,18 +149,30 @@ Allowed file size can be overridden by setting `PROSE_ATTACHMENT_ALLOWED_FILE_SI
 PROSE_ATTACHMENT_ALLOWED_FILE_SIZE = 15
 ```
 
+To restrict uploads to specific MIME types, set `PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES` to a list of allowed `Content-Type` strings (lowercase matching). If unset, MIME types are not restricted (only file size and safe image handling: SVG is stored as a file link, not inline as `<img>`).
+
+```python
+PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "application/pdf",
+]
+```
+
 ### Full example
 
 You can find a full example of a blog, built with Django Prose in the [`example`](./example/) directory.
 
 ## 🔒 A note on security
 
-As you can see in the examples above, what Django Prose does is provide you with a user friendly editor ([Trix](https://trix-editor.org/)) for your rich text content and then store it as HTML in your database. Since you will mark this HTML as safe in order to use it in your templates, it needs to be **sanitised**, before it gets stored in the database.
+As you can see in the examples above, what Django Prose does is provide you with a user friendly editor (powered by [Lexxy](https://github.com/basecamp/lexxy)) for your rich text content and then store it as HTML in your database. Since you will mark this HTML as safe in order to use it in your templates, it needs to be **sanitised**, before it gets stored in the database.
 
 For this reason Django Prose is using [Bleach](https://bleach.readthedocs.io/en/latest/) to only allow the following tags and attributes:
 
 - **Allowed tags**: `p`, `ul`, `ol`, `li`, `strong`, `em`, `div`, `span`, `a`, `blockquote`, `pre`, `figure`, `figcaption`, `br`, `code`, `h1`, `h2`, `h3`, `h4`, `h5`, `h6`, `picture`, `source`, `img`
-- **Allowed attributes**: `alt`, `class`, `id`, `src`, `srcset`, `href`, `media`
+- **Allowed attributes**: `alt`, `class`, `id`, `src`, `srcset`, `href`, `media`, `data-content-type`
 
 ## Screenshots
 

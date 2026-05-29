@@ -2,20 +2,25 @@
   overflow: auto;
 }
 
-form .aligned .django-prose-editor-container trix-editor ul {
-  margin-left: initial;
-  padding-left: initial;
+/* Lexxy hides upload buttons when attachments are off; we still use the default file button. */
+.django-prose-editor-container
+  lexxy-toolbar[data-attachments="false"][data-upload="file"]
+  button[name="file"] {
+  display: grid !important;
+  cursor: pointer;
 }
 
-form .aligned .django-prose-editor-container trix-editor ol li,
-form .aligned .django-prose-editor-container trix-editor ul li {
-  list-style-position: inside;
+.django-prose-lexxy figure.django-prose-attachment {
+  margin: 0.75em 0;
 }
 
-form .aligned .django-prose-editor-container trix-editor ul li {
-  list-style-type: initial;
+.django-prose-lexxy figure.django-prose-attachment--image img {
+  max-width: 100%;
+  height: auto;
 }
 
-.django-prose-editor-container trix-toolbar .trix-button {
-  background: #fff !important;
+.django-prose-lexxy figure.django-prose-attachment--file figcaption {
+  font-size: 0.85em;
+  opacity: 0.85;
+  margin-top: 0.25em;
 }

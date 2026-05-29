@@ -39,6 +39,7 @@ ALLOWED_ATTRIBUTES = [
     "srcset",
     "href",
     "media",
+    "data-content-type",
 ]
 
 
