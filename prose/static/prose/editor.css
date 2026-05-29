@@ -1,5 +1,17 @@
 .django-prose-editor-container {
-  overflow: auto;
+  overflow-x: clip;
+  /* Django admin lays out fields with .flex-container; Lexxy 0.9.14+ uses
+     container-type: inline-size on lexxy-editor, so the editor shrinks to
+     zero width unless this wrapper grows in the flex row. */
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+.django-prose-editor-container lexxy-editor {
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 100%;
 }
 
 /* Lexxy hides upload buttons when attachments are off; we still use the default file button. */
