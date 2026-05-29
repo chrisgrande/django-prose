@@ -15,6 +15,10 @@ _LEGACY_FIGURE_PATTERN = re.compile(
     r'<figure[^>]*class="[^"]*django-prose-attachment[^"]*"[^>]*>.*?</figure>',
     re.IGNORECASE | re.DOTALL,
 )
+_LEXXY_ATTACHMENT_FIGURE_PATTERN = re.compile(
+    r"<figure\b[^>]*\bclass=['\"][^'\"]*\battachment\b[^'\"]*['\"][^>]*>.*?</figure>",
+    re.IGNORECASE | re.DOTALL,
+)
 _IMG_SRC_PATTERN = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
 _LINK_HREF_PATTERN = re.compile(r'<a[^>]+href=["\']([^"\']+)["\']', re.IGNORECASE)
 _SGID_DATA_PATTERN = re.compile(r'data-prose-sgid=["\']([^"\']+)["\']', re.IGNORECASE)
@@ -178,12 +182,17 @@ def _attrs_sgid(attrs_str):
     return match.group(1) if match else None
 
 
-def _youtube_attachment_from_attrs(attrs_str):
+def _attachment_from_attrs(attrs_str):
     sgid = _attrs_sgid(attrs_str)
     if sgid:
-        obj = resolve_attachable(sgid)
-        if obj is not None and _is_youtube_attachment(obj):
-            return obj
+        return resolve_attachable(sgid)
+    return None
+
+
+def _youtube_attachment_from_attrs(attrs_str):
+    obj = _attachment_from_attrs(attrs_str)
+    if obj is not None and _is_youtube_attachment(obj):
+        return obj
 
     content_match = re.search(
         r'\bcontent=(["\'])(.*?)\1',
@@ -375,6 +384,23 @@ def canonicalize_legacy_attachments(html):
     return _LEGACY_FIGURE_PATTERN.sub(replace_figure, html)
 
 
+def _attachment_ids_from_lexxy_figures(html):
+    from prose.models import Attachment
+
+    ids = set()
+    for figure_html in _LEXXY_ATTACHMENT_FIGURE_PATTERN.findall(html or ""):
+        for sgid in _SGID_DATA_PATTERN.findall(figure_html):
+            obj = resolve_attachable(sgid)
+            if isinstance(obj, Attachment):
+                ids.add(obj.pk)
+        img_match = _IMG_SRC_PATTERN.search(figure_html)
+        if img_match:
+            attachment = _attachment_for_media_url(img_match.group(1))
+            if attachment:
+                ids.add(attachment.pk)
+    return ids
+
+
 def attachment_ids_from_html(html):
     from prose.models import Attachment
 
@@ -384,6 +410,8 @@ def attachment_ids_from_html(html):
         obj = resolve_attachable(sgid)
         if isinstance(obj, Attachment):
             ids.add(obj.pk)
+
+    ids.update(_attachment_ids_from_lexxy_figures(html))
 
     if "django-prose-attachment" in html:
         for figure_match in _LEGACY_FIGURE_PATTERN.finditer(html):
@@ -434,7 +462,26 @@ def cleanup_attachments_for_instance(instance, field_name=None):
     delete_unlinked_attachments(attachment_ids)
 
 
-def sync_attachments_for_instance(instance, field_name, html, *, previous_html=None):
+def _attachment_ids_from_abandoned_sgids(abandoned_sgids, *, exclude_ids=None):
+    from prose.models import Attachment
+
+    exclude_ids = exclude_ids or set()
+    ids = set()
+    for sgid in abandoned_sgids or []:
+        obj = resolve_attachable(sgid)
+        if isinstance(obj, Attachment) and obj.pk not in exclude_ids:
+            ids.add(obj.pk)
+    return ids
+
+
+def sync_attachments_for_instance(
+    instance,
+    field_name,
+    html,
+    *,
+    previous_html=None,
+    abandoned_sgids=None,
+):
     from prose.models import RichTextAttachment
 
     if not instance.pk:
@@ -460,8 +507,16 @@ def sync_attachments_for_instance(instance, field_name, html, *, previous_html=N
     )
     removed.delete()
 
+    session_abandoned_ids = _attachment_ids_from_abandoned_sgids(
+        abandoned_sgids,
+        exclude_ids=current_ids,
+    )
     delete_unlinked_attachments(
-        list(abandoned_from_content | removed_attachment_ids)
+        list(
+            abandoned_from_content
+            | removed_attachment_ids
+            | session_abandoned_ids
+        )
     )
 
     linked = set(
@@ -512,7 +567,7 @@ def hydrate_editor_attachments(html):
     def replace_tag(match):
         attrs_str = match.group(1)
         inner = match.group(2).strip()
-        obj = _youtube_attachment_from_attrs(attrs_str)
+        obj = _attachment_from_attrs(attrs_str)
         if obj is None or not hasattr(obj, "render_attachment_html"):
             return match.group(0)
         if _is_youtube_attachment(obj):

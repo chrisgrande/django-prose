@@ -1,0 +1,16 @@
+<figure class="attachment attachment--file django-prose-attachment django-prose-attachment--file django-prose-file-pill" data-content-type="{{ attachment.content_type }}" data-prose-sgid="{{ attachment.attachable_sgid }}" data-prose-filename="{{ attachment.original_filename }}">
+  <div class="django-prose-file-pill__card">
+    <button type="button" class="django-prose-file-pill__remove" aria-label="Remove attachment" tabindex="-1">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"/></svg>
+    </button>
+    <span class="django-prose-file-pill__icon">{% include "prose/attachments/file_icon.html" %}</span>
+    <div class="django-prose-file-pill__body">
+      <input type="text" class="django-prose-file-pill__name" value="{{ attachment.filename }}" aria-label="Attachment title" />
+      <span class="django-prose-file-pill__meta">
+        <span class="django-prose-file-pill__filename">{{ attachment.original_filename }}</span>
+        <span class="django-prose-file-pill__type">{{ attachment.file_type_label }}</span>
+      </span>
+    </div>
+    <a href="{{ attachment.download_url }}" class="django-prose-file-pill__download" tabindex="-1" aria-hidden="true" download></a>
+  </div>
+</figure>

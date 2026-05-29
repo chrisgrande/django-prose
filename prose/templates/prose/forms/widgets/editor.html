@@ -1,15 +1,30 @@
-<div class="django-prose-editor-container">
+{% if widget.editor_theme_css %}
+<style>
+{{ widget.editor_theme_css|safe }}
+</style>
+{% endif %}
+<div class="django-prose-editor-container django-prose-lexxy-host{% if not widget.prose_editable %} django-prose-lexxy-host--readonly{% endif %}">
   <lexxy-editor
     id="{{ widget.attrs.id }}"
     name="{{ widget.name }}"
-    class="django-prose-lexxy"
+    class="django-prose-lexxy{% if not widget.prose_editable %} django-prose-lexxy--readonly{% endif %}"
     data-upload-attachment-url="{% url 'prose_upload_attachment' %}"
     data-embed-url="{% url 'prose_embed' %}"
     data-embed-check-url="{% url 'prose_embed_check' %}"
     data-caption-url="{% url 'prose_update_attachment_caption' %}"
-    {% if widget.permitted_attachment_types_json %}data-permitted-attachment-types="{{ widget.permitted_attachment_types_json }}"{% endif %}
+    data-permitted-attachment-types="{{ widget.permitted_attachment_types_json }}"
+    {% if not widget.prose_editable %}data-prose-editable="false"{% endif %}
+    {% for attr_name, attr_value in widget.lexxy_attributes.items %}
+    {{ attr_name }}="{{ attr_value }}"
+    {% endfor %}
     {% if widget.attrs.placeholder %}placeholder="{{ widget.attrs.placeholder }}"{% endif %}
   ></lexxy-editor>
+  <input
+    type="hidden"
+    name="{{ widget.name }}_prose_abandoned_sgids"
+    id="{{ widget.attrs.id }}_prose_abandoned_sgids"
+    value="[]"
+  />
   {% if widget.value %}
   {{ widget.value|json_script:widget.initial_script_id }}
   <script>

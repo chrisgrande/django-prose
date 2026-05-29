@@ -6,6 +6,7 @@ from django.utils.html import strip_tags
 from prose.template_utils import render_prose_template
 
 from prose.attachables import sign_attachable, vendor_content_type
+from prose.attachment_types import content_type_label
 from prose.fields import DocumentContentField
 
 
@@ -35,6 +36,14 @@ class Attachment(models.Model):
         if self.content_type == vendor_content_type("youtube"):
             return self.metadata.get("embed_url") or self.metadata.get("url", "")
         return self.metadata.get("url", "")
+
+    @property
+    def original_filename(self):
+        return (self.metadata or {}).get("original_filename") or self.filename
+
+    @property
+    def file_type_label(self):
+        return content_type_label(self.content_type, self.original_filename)
 
     @property
     def download_url(self):
@@ -85,6 +94,7 @@ class Attachment(models.Model):
             "url": self.url,
             "download_url": self.download_url,
             "filename": self.filename,
+            "original_filename": self.original_filename,
             "content_type": self.content_type,
             "size": self.byte_size,
             "kind": self.kind,
@@ -108,6 +118,8 @@ class Attachment(models.Model):
             return "prose/attachments/image.html"
         if self.kind == "embed":
             return "prose/attachments/embed.html"
+        if context in ("editor", "paste"):
+            return "prose/attachments/file_editor.html"
         return "prose/attachments/file.html"
 
     def __str__(self):

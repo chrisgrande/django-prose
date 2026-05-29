@@ -54,8 +54,12 @@ ALLOWED_ATTRIBUTES = {
         "style",
         "data-content-type",
         "data-prose-sgid",
+        "data-prose-filename",
         "data-prose-content-type",
         "data-prose-caption",
+        "value",
+        "download",
+        "aria-hidden",
         "type",
         "aria-label",
         "title",
@@ -153,6 +157,7 @@ class RichTextField(models.TextField):
 
     def pre_save(self, model_instance, add):
         from prose.content import sync_attachments_for_instance
+        from prose.middleware import get_abandoned_sgids_for_field
 
         raw_html = getattr(model_instance, self.attname)
         if raw_html:
@@ -174,6 +179,7 @@ class RichTextField(models.TextField):
                 self.attname,
                 sanitized,
                 previous_html=previous_html,
+                abandoned_sgids=get_abandoned_sgids_for_field(self.attname),
             )
 
         return sanitized

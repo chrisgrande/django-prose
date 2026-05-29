@@ -36,6 +36,8 @@ def capture_previous_rich_text_html(sender, instance, **kwargs):
 
 @receiver(post_save)
 def sync_rich_text_attachments(sender, instance, **kwargs):
+    from prose.middleware import get_abandoned_sgids_for_field
+
     if sender._meta.app_label == "prose" and sender.__name__ == "Attachment":
         return
     field_names = _rich_text_field_names(sender)
@@ -49,6 +51,7 @@ def sync_rich_text_attachments(sender, instance, **kwargs):
             field_name,
             html,
             previous_html=previous_by_field.get(field_name),
+            abandoned_sgids=get_abandoned_sgids_for_field(field_name),
         )
 
 

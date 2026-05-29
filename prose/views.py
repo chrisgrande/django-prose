@@ -9,11 +9,14 @@ from django.http import JsonResponse
 from django.utils.module_loading import import_string
 from django.views.decorators.http import require_http_methods
 
-from prose.attachables import resolve_attachable, vendor_content_type
+from prose.attachables import resolve_attachable
+from prose.attachment_types import (
+    YOUTUBE_CONTENT_TYPE,
+    content_type_allowed,
+    normalize_upload_content_type,
+)
 from prose.embeds import match_embed_provider
 from prose.models import Attachment
-
-YOUTUBE_CONTENT_TYPE = vendor_content_type("youtube")
 
 ALLOWED_FILE_SIZE = getattr(settings, "PROSE_ATTACHMENT_ALLOWED_FILE_SIZE", 5)
 
@@ -53,15 +56,6 @@ def _classify_attachment(content_type):
     return "file", False
 
 
-def _content_type_allowed(content_type):
-    allowed_list = getattr(settings, "PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES", None)
-    if not allowed_list:
-        return True
-    ct = (content_type or "").lower()
-    allowed = {x.lower() for x in allowed_list if x}
-    return ct in allowed
-
-
 def _storage_key(original_name):
     attachment_dir = datetime.now().strftime("%Y/%m/%d")
     attachment_id = uuid4()
@@ -88,14 +82,16 @@ def upload_attachment(request):
             status=400,
         )
 
-    content_type = getattr(uploaded, "content_type", "") or ""
-    if not _content_type_allowed(content_type):
+    original_name = _safe_filename(uploaded.name)
+    content_type = normalize_upload_content_type(
+        getattr(uploaded, "content_type", "") or "",
+        original_name,
+    )
+    if not content_type_allowed(content_type, original_name):
         return JsonResponse(
             {"error": "This file type is not allowed."},
             status=400,
         )
-
-    original_name = _safe_filename(uploaded.name)
     path = _storage_key(original_name)
     path = default_storage.save(path, uploaded)
 
@@ -104,6 +100,7 @@ def upload_attachment(request):
         content_type=content_type or "application/octet-stream",
         filename=original_name,
         byte_size=uploaded.size,
+        metadata={"original_filename": original_name},
     )
 
     payload = attachment.to_lexxy_json()
@@ -127,14 +124,24 @@ def update_attachment_caption(request):
         return JsonResponse({"error": "No sgid provided."}, status=400)
 
     attachment = resolve_attachable(sgid)
-    if attachment is None or getattr(attachment, "content_type", None) != YOUTUBE_CONTENT_TYPE:
+    if attachment is None or not isinstance(attachment, Attachment):
         return JsonResponse({"error": "Attachment not found."}, status=404)
 
     metadata = dict(attachment.metadata or {})
-    metadata["title"] = caption
-    attachment.metadata = metadata
-    attachment.filename = caption
-    attachment.save(update_fields=["metadata", "filename"])
+    if attachment.content_type == YOUTUBE_CONTENT_TYPE:
+        metadata["title"] = caption
+        attachment.metadata = metadata
+        attachment.filename = caption
+        attachment.save(update_fields=["metadata", "filename"])
+    elif attachment.kind == "file":
+        if "original_filename" not in metadata:
+            metadata["original_filename"] = attachment.filename
+        metadata["title"] = caption
+        attachment.metadata = metadata
+        attachment.filename = caption or metadata.get("original_filename", "")
+        attachment.save(update_fields=["metadata", "filename"])
+    else:
+        return JsonResponse({"error": "Attachment not found."}, status=404)
 
     return JsonResponse(
         {

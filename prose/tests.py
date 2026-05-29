@@ -49,6 +49,13 @@ from prose.attachables import (
     sign_attachable,
     vendor_content_type,
 )
+from prose.attachment_types import (
+    content_type_allowed,
+    get_permitted_attachment_types,
+    matches_permitted_type,
+    mime_from_filename,
+    normalize_upload_content_type,
+)
 from prose.content import (
     _sync_youtube_caption_metadata,
     canonicalize_youtube_for_storage,
@@ -68,6 +75,56 @@ from prose.views import (
     upload_attachment,
 )
 from prose.widgets import RichTextEditor
+
+
+class AttachmentTypesTests(TestCase):
+    def test_mime_from_filename_office_types(self):
+        self.assertEqual(mime_from_filename("report.pdf"), "application/pdf")
+        self.assertEqual(
+            mime_from_filename("sheet.xlsx"),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    def test_matches_custom_permitted_types(self):
+        custom = ["application/pdf", "image/*"]
+        self.assertTrue(matches_permitted_type("application/pdf", "x.pdf", custom))
+        self.assertTrue(matches_permitted_type("image/jpeg", "photo.jpg", custom))
+        self.assertTrue(matches_permitted_type("image/png", "shot.png", custom))
+        self.assertFalse(matches_permitted_type("application/zip", "x.zip", custom))
+
+    def test_default_permitted_types_allow_image_png(self):
+        permitted = get_permitted_attachment_types()
+        self.assertTrue(matches_permitted_type("image/png", "photo.png", permitted))
+
+    def test_normalize_upload_content_type_for_office_zip(self):
+        sheet_mime = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        self.assertEqual(
+            normalize_upload_content_type("application/zip", "report.xlsx"),
+            sheet_mime,
+        )
+        self.assertTrue(
+            content_type_allowed(
+                "application/zip",
+                "report.xlsx",
+                [sheet_mime],
+            )
+        )
+
+    @override_settings(PROSE_PERMITTED_ATTACHMENT_TYPES=["application/pdf"])
+    def test_custom_permitted_types_replace_defaults(self):
+        permitted = get_permitted_attachment_types()
+        self.assertEqual(permitted, ["application/pdf"])
+
+
+class WidgetPermittedTypesTests(TestCase):
+    def test_widget_exposes_permitted_types_json(self):
+        widget = RichTextEditor()
+        context = widget.get_context("body", "", {"id": "id_body"})
+        permitted = json.loads(context["widget"]["permitted_attachment_types_json"])
+        self.assertIn("application/pdf", permitted)
+        self.assertIn("image/*", permitted)
 
 
 class UploadAttachmentViewTests(TestCase):
@@ -118,6 +175,42 @@ class UploadAttachmentViewTests(TestCase):
         request = self.factory.post("/prose/attachment/", {})
         response = self._upload_attachment(request)
         self.assertEqual(response.status_code, 400)
+
+    @override_settings(
+        PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES=[
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ]
+    )
+    def test_upload_xlsx(self):
+        f = SimpleUploadedFile(
+            "sheet.xlsx",
+            b"PK",
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        request = self.factory.post("/prose/attachment/", {"file": f})
+        response = self._upload_attachment(request)
+        self.assertEqual(response.status_code, 201)
+        data = json.loads(response.content.decode())
+        self.assertEqual(data["kind"], "file")
+        self.assertEqual(data["content_type"], f.content_type)
+
+    @override_settings(
+        PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES=[
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ]
+    )
+    def test_upload_xlsx_as_application_zip(self):
+        f = SimpleUploadedFile(
+            "sheet.xlsx",
+            b"PK",
+            content_type="application/zip",
+        )
+        request = self.factory.post("/prose/attachment/", {"file": f})
+        response = self._upload_attachment(request)
+        self.assertEqual(response.status_code, 201)
+        data = json.loads(response.content.decode())
+        self.assertEqual(data["kind"], "file")
+        self.assertIn("spreadsheetml.sheet", data["content_type"])
 
     @override_settings(PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES=["image/png"])
     def test_content_type_allowlist(self):
@@ -213,6 +306,25 @@ class EmbedUrlViewTests(TestCase):
         self.assertEqual(attachment.metadata["title"], "After")
         self.assertEqual(attachment.filename, "After")
 
+    def test_update_file_attachment_display_name(self):
+        attachment = Attachment.objects.create(
+            content_type="application/pdf",
+            filename="report.pdf",
+            byte_size=1024,
+            metadata={"original_filename": "report.pdf"},
+        )
+        sgid = sign_attachable(attachment)
+        request = self.factory.post(
+            "/prose/attachment/caption/",
+            data=json.dumps({"sgid": sgid, "caption": "Q1 financials"}),
+            content_type="application/json",
+        )
+        response = update_attachment_caption(request)
+        self.assertEqual(response.status_code, 200)
+        attachment.refresh_from_db()
+        self.assertEqual(attachment.filename, "Q1 financials")
+        self.assertEqual(attachment.metadata["original_filename"], "report.pdf")
+
     def test_update_attachment_caption_can_clear_caption(self):
         attachment = Attachment.objects.create(
             content_type=vendor_content_type("youtube"),
@@ -294,6 +406,20 @@ class ContentTests(TestCase):
         self.assertNotRegex(hydrated, r"<textarea[^>]*>\s*[^<\s]")
         self.assertIn(sgid, hydrated)
         self.assertNotRegex(hydrated, r'\bcaption="')
+
+    def test_hydrate_file_attachment_uses_pill_editor_template(self):
+        attachment = Attachment.objects.create(
+            content_type="application/pdf",
+            filename="report.pdf",
+            metadata={"original_filename": "report.pdf"},
+        )
+        sgid = sign_attachable(attachment)
+        html = f'<prose-attachment sgid="{sgid}"></prose-attachment>'
+        hydrated = hydrate_editor_attachments(html)
+        self.assertIn("django-prose-file-pill", hydrated)
+        self.assertIn("django-prose-file-pill__name", hydrated)
+        self.assertIn("report.pdf", hydrated)
+        self.assertIn("PDF", hydrated)
 
     def test_hydrate_strips_duplicate_caption_paragraph_from_lexxy_export(self):
         attachment = Attachment.objects.create(
@@ -644,21 +770,26 @@ class ContentTests(TestCase):
         self.assertEqual(rendered.lower().count("<iframe"), 1)
 
     def test_render_prose_attachments_image(self):
-        uploaded = SimpleUploadedFile(
-            "photo.jpg", b"\xff\xd8\xff", content_type="image/jpeg"
-        )
-        attachment = Attachment.objects.create(
-            file=uploaded,
-            content_type="image/jpeg",
-            filename="photo.jpg",
-            byte_size=3,
-        )
-        sgid = sign_attachable(attachment)
-        html = f'<prose-attachment sgid="{sgid}"></prose-attachment>'
-        rendered = render_prose_attachments(html)
-        self.assertIn("<img", rendered)
-        self.assertIn(attachment.url, rendered)
-        self.assertNotIn("prose-attachment", rendered)
+        media_root = tempfile.mkdtemp(prefix="prose_test_")
+        try:
+            with self.settings(MEDIA_ROOT=media_root):
+                uploaded = SimpleUploadedFile(
+                    "photo.jpg", b"\xff\xd8\xff", content_type="image/jpeg"
+                )
+                attachment = Attachment.objects.create(
+                    file=uploaded,
+                    content_type="image/jpeg",
+                    filename="photo.jpg",
+                    byte_size=3,
+                )
+                sgid = sign_attachable(attachment)
+                html = f'<prose-attachment sgid="{sgid}"></prose-attachment>'
+                rendered = render_prose_attachments(html)
+            self.assertIn("<img", rendered)
+            self.assertIn(attachment.url, rendered)
+            self.assertNotIn("prose-attachment", rendered)
+        finally:
+            shutil.rmtree(media_root, ignore_errors=True)
 
     def test_sync_attachments_for_document(self):
         attachment = Attachment.objects.create(
@@ -718,6 +849,57 @@ class ContentTests(TestCase):
 
         self.assertTrue(Attachment.objects.filter(pk=kept.pk).exists())
         self.assertFalse(Attachment.objects.filter(pk=abandoned.pk).exists())
+
+    def test_sync_deletes_session_abandoned_attachment_never_in_html(self):
+        attachment = Attachment.objects.create(
+            content_type="image/jpeg",
+            filename="uploaded.jpg",
+        )
+        sgid = sign_attachable(attachment)
+        doc = Document.objects.create(content="<p></p>")
+        sync_attachments_for_instance(
+            doc,
+            "content",
+            doc.content,
+            abandoned_sgids=[sgid],
+        )
+        self.assertFalse(Attachment.objects.filter(pk=attachment.pk).exists())
+
+    def test_sync_keeps_session_abandoned_sgid_still_in_html(self):
+        attachment = Attachment.objects.create(
+            content_type="image/jpeg",
+            filename="kept.jpg",
+        )
+        sgid = sign_attachable(attachment)
+        doc = Document.objects.create(
+            content=f'<p><prose-attachment sgid="{sgid}"></prose-attachment></p>'
+        )
+        sync_attachments_for_instance(
+            doc,
+            "content",
+            doc.content,
+            abandoned_sgids=[sgid],
+        )
+        self.assertTrue(Attachment.objects.filter(pk=attachment.pk).exists())
+
+    def test_sync_removes_abandoned_lexxy_figure_attachment(self):
+        attachment = Attachment.objects.create(
+            content_type="image/jpeg",
+            filename="photo.jpg",
+        )
+        sgid = sign_attachable(attachment)
+        stored_with_figure = (
+            f'<figure class="attachment attachment--preview" data-prose-sgid="{sgid}">'
+            f'<img src="/media/prose/photo.jpg" alt="photo.jpg"></figure>'
+        )
+        doc = Document.objects.create(content=f"<p>{stored_with_figure}</p>")
+        sync_attachments_for_instance(doc, "content", doc.content)
+        self.assertEqual(Attachment.objects.count(), 1)
+
+        doc.content = "<p></p>"
+        doc.save()
+
+        self.assertFalse(Attachment.objects.filter(pk=attachment.pk).exists())
 
     def test_sync_removes_abandoned_attachments(self):
         kept = Attachment.objects.create(

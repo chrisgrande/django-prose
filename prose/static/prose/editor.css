@@ -1,3 +1,7 @@
+/*
+ * Layout and admin isolation only — typography, tables, and toolbar chrome come
+ * from Lexxy package CSS (lexxy-variables, lexxy-content, lexxy-editor).
+ */
 .django-prose-editor-container {
   overflow-x: clip;
   /* Django admin lays out fields with .flex-container; Lexxy 0.9.14+ uses
@@ -8,10 +12,67 @@
   max-inline-size: 100%;
 }
 
+.django-prose-editor-container.lexxy-editor-host {
+  /* Contain admin form/table rules; Lexxy styles live on lexxy-editor / .lexxy-content. */
+  isolation: isolate;
+}
+
+/* Read-only mode (PROSE_LEXXY_EDITOR editable=False / data-prose-editable="false") */
+.django-prose-lexxy-host--readonly lexxy-editor.django-prose-lexxy--readonly,
+.django-prose-lexxy-host--readonly lexxy-editor[data-prose-editable="false"] {
+  opacity: 0.95;
+}
+
+.django-prose-lexxy-host--readonly lexxy-toolbar,
+.django-prose-lexxy--readonly lexxy-toolbar {
+  display: none !important;
+}
+
+.django-prose-lexxy-host--readonly .lexxy-editor__content,
+.django-prose-lexxy--readonly .lexxy-editor__content {
+  cursor: default;
+}
+
 .django-prose-editor-container lexxy-editor {
   box-sizing: border-box;
   inline-size: 100%;
   max-inline-size: 100%;
+}
+
+/*
+ * Django admin can set display on table elements inside forms. Restore table layout
+ * so Lexxy package rules for .lexxy-content table apply.
+ */
+.django-prose-editor-container.lexxy-editor-host
+  lexxy-editor
+  .lexxy-editor__content.lexxy-content
+  .lexxy-content__table-wrapper
+  table {
+  display: table;
+}
+
+.django-prose-editor-container.lexxy-editor-host
+  lexxy-editor
+  .lexxy-editor__content.lexxy-content
+  .lexxy-content__table-wrapper
+  :is(thead, tbody) {
+  display: table-row-group;
+}
+
+.django-prose-editor-container.lexxy-editor-host
+  lexxy-editor
+  .lexxy-editor__content.lexxy-content
+  .lexxy-content__table-wrapper
+  tr {
+  display: table-row;
+}
+
+.django-prose-editor-container.lexxy-editor-host
+  lexxy-editor
+  .lexxy-editor__content.lexxy-content
+  .lexxy-content__table-wrapper
+  :is(th, td) {
+  display: table-cell;
 }
 
 /* Lexxy hides upload buttons when attachments are off; we still use the default file button. */
@@ -31,19 +92,156 @@
   height: auto;
 }
 
-.django-prose-lexxy prose-attachment > figure.attachment--file {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  inline-size: auto;
-  margin: 0;
+/* File / PDF / Office attachments — pill UI in editor and on display */
+.django-prose-lexxy figure.django-prose-file-pill,
+figure.django-prose-file-pill {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 28rem;
+  margin: 0.5em 0;
+  padding: 0;
+  text-align: start;
 }
 
-.django-prose-lexxy figure.attachment--file .attachment__icon svg,
-figure.attachment--file .attachment__icon svg {
-  block-size: 1.5em;
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__card,
+figure.django-prose-file-pill .django-prose-file-pill__card {
+  align-items: flex-start;
+  background: var(--lexxy-color-canvas, #fff);
+  border: 1px solid var(--lexxy-color-ink-lighter, #d4d4d4);
+  border-radius: var(--lexxy-radius, 0.5rem);
+  box-sizing: border-box;
+  display: flex;
+  gap: 0.75rem;
+  inline-size: 100%;
+  padding: 0.65rem 0.75rem;
+  position: relative;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__remove,
+figure.django-prose-file-pill .django-prose-file-pill__remove {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--lexxy-radius, 0.35rem);
+  color: var(--lexxy-color-ink-medium, #666);
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  inset-block-start: 0.35rem;
+  inset-inline-end: 0.35rem;
+  justify-content: center;
+  margin: 0;
+  padding: 0.2rem;
+  position: absolute;
+  z-index: 2;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__remove:hover,
+figure.django-prose-file-pill .django-prose-file-pill__remove:hover {
+  background: var(--lexxy-color-selected, rgba(0, 0, 0, 0.06));
+  color: var(--lexxy-color-ink, #111);
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__remove svg,
+figure.django-prose-file-pill .django-prose-file-pill__remove svg {
+  block-size: 1.1rem;
+  inline-size: 1.1rem;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__icon,
+figure.django-prose-file-pill .django-prose-file-pill__icon {
+  color: var(--lexxy-color-ink-medium, #555);
+  flex-shrink: 0;
+  margin-block-start: 0.1rem;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__icon svg,
+figure.django-prose-file-pill .django-prose-file-pill__icon svg {
+  block-size: 1.75rem;
   display: block;
-  inline-size: 1.5em;
+  inline-size: 1.75rem;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__body,
+figure.django-prose-file-pill .django-prose-file-pill__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-inline-size: 0;
+  padding-inline-end: 1.5rem;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__name,
+figure.django-prose-file-pill .django-prose-file-pill__name {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--lexxy-radius, 0.25rem);
+  box-sizing: border-box;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  inline-size: 100%;
+  line-height: 1.3;
+  margin: 0;
+  padding: 0.15rem 0.35rem;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__name--link,
+figure.django-prose-file-pill .django-prose-file-pill__name--link {
+  border-color: transparent;
+  display: block;
+  font-weight: 600;
+  padding: 0;
+  text-decoration: none;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__name--link:hover,
+figure.django-prose-file-pill .django-prose-file-pill__name--link:hover {
+  text-decoration: underline;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__name:focus,
+figure.django-prose-file-pill .django-prose-file-pill__name:focus {
+  background: var(--lexxy-focus-bg-color, rgba(0, 0, 0, 0.04));
+  border-color: var(--lexxy-focus-ring-color, #2684ff);
+  outline: none;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__meta,
+figure.django-prose-file-pill .django-prose-file-pill__meta {
+  color: var(--lexxy-color-ink-medium, #666);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85em;
+  gap: 0.1rem;
+  line-height: 1.25;
+  padding-inline: 0.35rem;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__filename,
+figure.django-prose-file-pill .django-prose-file-pill__filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__type,
+figure.django-prose-file-pill .django-prose-file-pill__type {
+  font-size: 0.95em;
+  opacity: 0.9;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__download,
+figure.django-prose-file-pill .django-prose-file-pill__download {
+  inset: 0;
+  position: absolute;
+  z-index: 1;
+}
+
+.django-prose-lexxy prose-attachment:has(> figure.django-prose-file-pill) > lexxy-node-delete-button {
+  display: none !important;
+  pointer-events: none !important;
 }
 
 /*

@@ -167,6 +167,21 @@ PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES = [
     "image/gif",
     "image/webp",
     "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]
+```
+
+PDF, Word, Excel, and PowerPoint files appear in the editor as a **pill** with a remove control, an editable title, and the original filename plus file type underneath.
+
+To control what the editor accepts (drag/drop and the upload button), set `PROSE_PERMITTED_ATTACHMENT_TYPES`. When set, this list **replaces** the built-in defaults (it is not merged). Wildcards such as `image/*` and `application/*` are supported.
+
+```python
+PROSE_PERMITTED_ATTACHMENT_TYPES = [
+    "image/*",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]
 ```
 
@@ -208,9 +223,44 @@ In your form template, add Lexxy prompts with `{% load prose_attachments %}` and
 
 Optional settings:
 
-- `PROSE_PERMITTED_ATTACHMENT_TYPES` — list of MIME / vendor content types allowed in the editor (passed to Lexxy).
+- `PROSE_PERMITTED_ATTACHMENT_TYPES` — MIME patterns allowed in the editor (drag/drop and upload). Replaces defaults when set; supports wildcards (`image/*`, `application/*`).
 - `PROSE_EMBED_IFRAME_SRC_PREFIXES` — allowed `iframe` `src` prefixes when sanitizing (default: YouTube nocookie embeds).
 - `PROSE_UPLOAD_PERMISSION` — dotted path to a callable `(request) -> bool` for upload/embed authorization.
+
+#### Editor appearance (`PROSE_EDITOR_THEME`)
+
+Override Lexxy CSS variables for the editor chrome (background, borders, toolbar icons, text, accent). Colors apply to the editor wrapper and map to [Lexxy theme variables](https://github.com/basecamp/lexxy).
+
+```python
+PROSE_EDITOR_THEME = {
+    "background": "#1e1e1e",
+    "border": "#3c3c3c",
+    "icon": "#e0e0e0",
+    "text": "#f5f5f5",
+    "accent": "#6ea8fe",
+}
+```
+
+Supported keys: `background`, `border`, `icon`, `text`, `text_subtle`, `accent`, `focus`, `toolbar_background`, `content_background`, `selected`, `link`.
+
+Per-widget overrides: `RichTextEditor(theme={"background": "#fff"})`.
+
+#### Lexxy behaviour (`PROSE_LEXXY_EDITOR`)
+
+These options are exposed as attributes on `<lexxy-editor>` (Lexxy’s preset API): `attachments`, `markdown`, `multi_line` → `multi-line`, `rich_text` → `rich-text`, `toolbar` (JSON), `highlight` (JSON), and `single_line` → `single-line`.
+
+```python
+PROSE_LEXXY_EDITOR = {
+    "attachments": True,
+    "markdown": True,
+    "multi_line": True,
+    "rich_text": True,
+    "editable": True,  # False = read-only (toolbar hidden, Lexical not editable)
+    "toolbar": {"upload": "file"},
+}
+```
+
+Per-widget overrides: `RichTextEditor(lexxy={"editable": False})`.
 
 ### Full example
 

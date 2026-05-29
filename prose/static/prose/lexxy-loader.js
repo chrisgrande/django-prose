@@ -6,6 +6,28 @@
     '<path fill-rule="evenodd" d="M5.625 1.5H9a3.75 3.75 0 0 1 3.75 3.75v1.875c0 1.036.84 1.875 1.875 1.875H16.5a3.75 3.75 0 0 1 3.75 3.75v7.875c0 1.035-.84 1.875-1.875 1.875H5.625a1.875 1.875 0 0 1-1.875-1.875V3.375c0-1.036.84-1.875 1.875-1.875Zm5.845 17.03a.75.75 0 0 0 1.06 0l3-3a.75.75 0 1 0-1.06-1.06l-1.72 1.72V12a.75.75 0 0 0-1.5 0v4.19l-1.72-1.72a.75.75 0 0 0-1.06 1.06l3 3Z" clip-rule="evenodd"/>' +
     '<path d="M14.25 5.25a5.23 5.23 0 0 0-1.279-3.434 9.768 9.768 0 0 1 6.963 6.963A5.23 5.23 0 0 0 16.5 7.5h-1.875a.375.375 0 0 1-.375-.375V5.25Z"/>' +
     "</svg>"
+  var FILE_PILL_REMOVE_ICON_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z"/></svg>'
+
+  // Keep in sync with prose.attachment_types (used when building editor allowlist server-side).
+  var EXTENSION_TO_MIME = {
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  }
+  var MIME_TYPE_LABELS = {
+    "application/pdf": "PDF",
+    "application/msword": "Word document",
+    "application/vnd.ms-excel": "Excel spreadsheet",
+    "application/vnd.ms-powerpoint": "PowerPoint presentation",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "Word document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "Excel spreadsheet",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": "PowerPoint presentation",
+  }
 
   function decodeHtmlEntities(value) {
     var el = document.createElement("textarea")
@@ -216,19 +238,61 @@
       )
     }
     if (payload.kind === "embed" && payload.html) return payload.html
-    var href = escapeHtml(payload.download_url || payload.url)
+    return filePillFigureHtml(payload)
+  }
+
+  function mimeFromFilename(filename) {
+    if (!filename || filename.indexOf(".") === -1) return ""
+    return EXTENSION_TO_MIME[filename.split(".").pop().toLowerCase()] || ""
+  }
+
+  function formatFileTypeLabel(contentType, filename) {
+    var ct = (contentType || "").toLowerCase()
+    if (MIME_TYPE_LABELS[ct]) return MIME_TYPE_LABELS[ct]
+    var inferred = mimeFromFilename(filename)
+    if (inferred && MIME_TYPE_LABELS[inferred]) return MIME_TYPE_LABELS[inferred]
+    if (ct.indexOf("image/") === 0) return "Image"
+    if (ct.indexOf("video/") === 0) return "Video"
+    if (ct.indexOf("application/") === 0) {
+      var subtype = ct.split("/")[1] || ""
+      if (subtype) return subtype.replace(/\./g, " ").replace(/\+/g, " ").replace(/_/g, " ")
+      return "Document"
+    }
+    if (filename && filename.indexOf(".") !== -1) {
+      return filename.split(".").pop().toUpperCase() + " file"
+    }
+    return "File"
+  }
+
+  function filePillFigureHtml(payload) {
+    var ct = escapeHtml(payload.content_type || "")
+    var displayName = escapeHtml(payload.filename || "file")
+    var originalName = escapeHtml(payload.original_filename || payload.filename || "file")
+    var typeLabel = escapeHtml(formatFileTypeLabel(payload.content_type, payload.filename))
+    var href = escapeHtml(payload.download_url || payload.url || "#")
+    var sgidAttr = payload.sgid
+      ? ' data-prose-sgid="' + escapeHtml(payload.sgid) + '"'
+      : ""
     return (
-      '<figure class="attachment attachment--file django-prose-attachment django-prose-attachment--file" data-content-type="' +
+      '<figure class="attachment attachment--file django-prose-attachment django-prose-attachment--file django-prose-file-pill" data-content-type="' +
       ct +
-      '"><span class="attachment__icon">' +
+      '"' +
+      sgidAttr +
+      ' data-prose-filename="' +
+      originalName +
+      '"><div class="django-prose-file-pill__card"><button type="button" class="django-prose-file-pill__remove" aria-label="Remove attachment" tabindex="-1">' +
+      FILE_PILL_REMOVE_ICON_SVG +
+      '</button><span class="django-prose-file-pill__icon">' +
       FILE_ATTACHMENT_ICON_SVG +
-      '</span><figcaption class="attachment__caption"><a href="' +
+      '</span><div class="django-prose-file-pill__body"><input type="text" class="django-prose-file-pill__name" value="' +
+      displayName +
+      '" aria-label="Attachment title" /><span class="django-prose-file-pill__meta"><span class="django-prose-file-pill__filename">' +
+      originalName +
+      '</span><span class="django-prose-file-pill__type">' +
+      typeLabel +
+      '</span></span></div><a href="' +
       href +
-      '" class="attachment__name">' +
-      filename +
-      '</a><span class="attachment__size">' +
-      escapeHtml(formatSize(payload.size || 0)) +
-      "</span></figcaption></figure>"
+      '" class="django-prose-file-pill__download" tabindex="-1" aria-hidden="true" download></a></div></figure>'
     )
   }
 
@@ -254,6 +318,27 @@
     }
     var inner = payload.html || attachmentFigureHtml(payload)
     return "<prose-attachment " + attrs.join(" ") + ">" + inner + "</prose-attachment>"
+  }
+
+  function insertHtmlNow(editorElement, html) {
+    if (!html) return
+
+    function appendViaValue() {
+      editorElement.value = (editorElement.value || "") + html
+    }
+
+    if (!editorElement.contents || typeof editorElement.contents.insertHtml !== "function") {
+      appendViaValue()
+      return
+    }
+
+    if (typeof editorElement.focus === "function") editorElement.focus()
+
+    try {
+      editorElement.contents.insertHtml(html)
+    } catch (e) {
+      appendViaValue()
+    }
   }
 
   function insertHtml(editorElement, html) {
@@ -437,31 +522,221 @@
     })
   }
 
-  function bindFileUpload(host, editorElement) {
-    if (editorElement.dataset.djangoProseFileUploadBound === "1") return
-    editorElement.dataset.djangoProseFileUploadBound = "1"
+  function patternMatchesMimeType(contentType, pattern) {
+    if (!pattern || !contentType) return false
+    pattern = String(pattern).toLowerCase()
+    contentType = String(contentType).toLowerCase()
+    if (pattern === "*/*" || pattern === contentType) return true
+    // Wildcards are "type/*" (slash then star). indexOf("*/") does not match "image/*".
+    if (pattern.length > 2 && pattern.slice(-2) === "/*") {
+      var prefix = pattern.slice(0, -1)
+      return contentType.indexOf(prefix) === 0
+    }
+    return false
+  }
 
-    editorElement.addEventListener(
-      "lexxy:file-accept",
-      function (e) {
-        e.preventDefault()
-        var file = e.detail && e.detail.file
-        if (!file) return
-        uploadFile(
-          host,
-          file,
-          function (payload) {
-            insertHtml(editorElement, proseAttachmentHtml(payload))
-          },
-          function () {}
-        )
+  function fileMatchesPermittedTypes(file, permittedTypes) {
+    if (!permittedTypes || !permittedTypes.length) return true
+    var contentType = ((file && file.type) || "").toLowerCase()
+    var inferred = mimeFromFilename(file && file.name)
+    var candidates = []
+    if (contentType) candidates.push(contentType)
+    if (inferred && candidates.indexOf(inferred) === -1) candidates.push(inferred)
+    if (!candidates.length) {
+      for (var j = 0; j < permittedTypes.length; j++) {
+        var open = permittedTypes[j]
+        if (open === "application/*" || open === "*/*") return true
+      }
+      return false
+    }
+    for (var c = 0; c < candidates.length; c++) {
+      for (var i = 0; i < permittedTypes.length; i++) {
+        if (patternMatchesMimeType(candidates[c], permittedTypes[i])) return true
+      }
+    }
+    return false
+  }
+
+  function permittedTypesForEditor(editorElement) {
+    return parsePermittedTypes(editorElement)
+  }
+
+  var OFFICE_FILE_EXTENSIONS = ".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+
+  function buildFileInputAcceptAttribute(editorElement) {
+    var permitted = permittedTypesForEditor(editorElement)
+    if (!permitted.length) return "*/*"
+    var parts = []
+    var hasExtension = false
+    for (var i = 0; i < permitted.length; i++) {
+      var pattern = permitted[i]
+      if (!pattern || pattern === YOUTUBE_CONTENT_TYPE) continue
+      if (pattern.charAt(0) === ".") {
+        parts.push(pattern)
+        hasExtension = true
+      } else if (pattern.indexOf("/") !== -1) {
+        parts.push(pattern)
+        if (
+          pattern === "application/*" ||
+          pattern.indexOf("spreadsheet") !== -1 ||
+          pattern.indexOf("wordprocessing") !== -1 ||
+          pattern.indexOf("presentation") !== -1 ||
+          pattern === "application/pdf"
+        ) {
+          hasExtension = true
+        }
+      }
+    }
+    if (!hasExtension) parts.push(OFFICE_FILE_EXTENSIONS)
+    return parts.length ? parts.join(",") : "*/*"
+  }
+
+  function djangoPayloadToLexxyBlob(payload) {
+    return {
+      attachable_sgid: payload.sgid,
+      url: payload.download_url || payload.url,
+      filename: payload.filename || "file",
+      content_type: payload.content_type || "application/octet-stream",
+      byte_size: payload.size || 0,
+      previewable: true,
+      signed_id: payload.sgid || "",
+    }
+  }
+
+  function insertPendingUpload(editorElement, file) {
+    var contents = editorElement.contents
+    if (!contents || typeof contents.insertPendingAttachment !== "function") return null
+    return contents.insertPendingAttachment(file)
+  }
+
+  function completePendingUpload(editorElement, pending, file, payload) {
+    if (pending && typeof pending.setAttributes === "function") {
+      try {
+        pending.setAttributes(djangoPayloadToLexxyBlob(payload))
+        if (payload && payload.sgid) trackSessionUpload(editorElement, payload.sgid)
+        return
+      } catch (e) {
+        if (typeof pending.remove === "function") pending.remove()
+      }
+    }
+    insertHtmlNow(editorElement, proseAttachmentHtml(payload))
+    if (payload && payload.sgid) trackSessionUpload(editorElement, payload.sgid)
+  }
+
+  function uploadFileToEditor(editorElement, host, file, pending) {
+    uploadFile(
+      host,
+      file,
+      function (payload) {
+        completePendingUpload(editorElement, pending, file, payload)
       },
-      true
+      function (err) {
+        if (pending && typeof pending.remove === "function") pending.remove()
+        if (typeof console !== "undefined" && console.error) {
+          console.error("django-prose: attachment upload failed", err)
+        }
+      }
     )
+  }
+
+  function uploadFilesToEditor(editorElement, host, files) {
+    var fileList = Array.prototype.slice.call(files)
+
+    function uploadNext(index) {
+      if (index >= fileList.length) return
+      var file = fileList[index]
+      var pending = insertPendingUpload(editorElement, file)
+      uploadFileToEditor(editorElement, host, file, pending)
+      uploadNext(index + 1)
+    }
+
+    uploadNext(0)
+  }
+
+  function djangoProseEditorFromEvent(event) {
+    if (!event) return null
+
+    if (typeof event.composedPath === "function") {
+      var path = event.composedPath()
+      for (var i = 0; i < path.length; i++) {
+        var node = path[i]
+        if (
+          node &&
+          node.nodeType === 1 &&
+          node.matches &&
+          node.matches("lexxy-editor.django-prose-lexxy")
+        ) {
+          return node
+        }
+      }
+    }
+
+    if (event.target && event.target.closest) {
+      return event.target.closest("lexxy-editor.django-prose-lexxy")
+    }
+
+    return null
+  }
+
+  function isLexxyInternalDrag(dataTransfer) {
+    if (!dataTransfer || !dataTransfer.types) return false
+    return Array.prototype.indexOf.call(dataTransfer.types, "application/x-lexxy-node-key") !== -1
+  }
+
+  function handleDjangoFileAccept(event) {
+    if (event.djangoProseHandled) return
+
+    var editorElement = djangoProseEditorFromEvent(event)
+    if (
+      !editorElement &&
+      event.currentTarget &&
+      event.currentTarget.matches &&
+      event.currentTarget.matches("lexxy-editor.django-prose-lexxy")
+    ) {
+      editorElement = event.currentTarget
+    }
+    if (!editorElement) return
+
+    var host = uploadUrlFromEditor(editorElement)
+    if (!host) return
+
+    var file = event.detail && event.detail.file
+    if (!file) return
+
+    if (!fileMatchesPermittedTypes(file, permittedTypesForEditor(editorElement))) {
+      event.preventDefault()
+      return
+    }
+
+    event.djangoProseHandled = true
+    event.preventDefault()
+
+    // Insert at the current Lexical caret while file-accept is still synchronous
+    // (Lexxy has just restored selection after drop).
+    var pending = insertPendingUpload(editorElement, file)
+    uploadFileToEditor(editorElement, host, file, pending)
+  }
+
+  function bindFileUpload(_host, _editorElement) {
+    ensureDocumentUploadHandlers()
   }
 
   function wireFileUploadButton(toolbar, editorElement, host, attempt) {
     attempt = attempt || 0
+    if (!toolbar) {
+      toolbar =
+        editorElement.toolbarElement ||
+        editorElement.querySelector("lexxy-toolbar")
+    }
+    if (!toolbar) {
+      if (attempt < 30) {
+        requestAnimationFrame(function () {
+          wireFileUploadButton(null, editorElement, host, attempt + 1)
+        })
+      }
+      return
+    }
+
     var fileBtn = toolbar.querySelector('button[name="file"]')
     if (!fileBtn) {
       if (attempt < 30) {
@@ -471,14 +746,18 @@
       }
       return
     }
-    if (fileBtn.dataset.djangoProseWired === "1") return
-    fileBtn.dataset.djangoProseWired = "1"
+
+    if (fileBtn._djangoProseFileInput) {
+      fileBtn._djangoProseFileInput.remove()
+      fileBtn._djangoProseFileInput = null
+    }
 
     var fileInput = document.createElement("input")
     fileInput.type = "file"
     fileInput.multiple = true
-    fileInput.accept = "*/*"
+    fileInput.accept = buildFileInputAcceptAttribute(editorElement)
     fileInput.style.display = "none"
+    fileBtn._djangoProseFileInput = fileInput
 
     fileBtn.addEventListener(
       "click",
@@ -493,20 +772,75 @@
 
     fileInput.addEventListener("change", function () {
       if (!fileInput.files || !fileInput.files.length) return
-      Array.prototype.forEach.call(fileInput.files, function (file) {
-        uploadFile(
-          host,
-          file,
-          function (payload) {
-            insertHtml(editorElement, proseAttachmentHtml(payload))
-          },
-          function () {}
-        )
-      })
+      uploadFilesToEditor(editorElement, host, fileInput.files)
       fileInput.value = ""
     })
 
     toolbar.appendChild(fileInput)
+  }
+
+  function applyLexxyContentScope(editorElement) {
+    var content =
+      editorElement.editorContentElement ||
+      editorElement.querySelector(".lexxy-editor__content")
+    if (content && !content.classList.contains("lexxy-content")) {
+      content.classList.add("lexxy-content")
+    }
+  }
+
+  function handleDjangoEditorDragOver(event) {
+    var editorElement = djangoProseEditorFromEvent(event)
+    if (!editorElement) return
+    var dataTransfer = event.dataTransfer
+    if (!dataTransfer || isLexxyInternalDrag(dataTransfer)) return
+    if (!uploadUrlFromEditor(editorElement)) return
+    if (Array.prototype.indexOf.call(dataTransfer.types, "Files") === -1) return
+    event.preventDefault()
+    dataTransfer.dropEffect = "copy"
+  }
+
+  function proseEditableFromEditor(el) {
+    var raw = el.getAttribute("data-prose-editable")
+    if (raw == null) return true
+    if (raw === "false" || raw === "0") return false
+    try {
+      return JSON.parse(raw) !== false
+    } catch (e) {
+      return true
+    }
+  }
+
+  function applyLexxyEditable(editorElement) {
+    if (proseEditableFromEditor(editorElement)) return
+    if (!editorElement.editor || typeof editorElement.editor.setEditable !== "function") {
+      return
+    }
+    editorElement.editor.setEditable(false)
+    editorElement.classList.add("django-prose-lexxy--readonly")
+  }
+
+  function setupDjangoProseEditor(editorElement) {
+    applyLexxyContentScope(editorElement)
+    applyLexxyEditable(editorElement)
+    wireEditorFormSubmit(editorElement)
+    var uploadHost = uploadUrlFromEditor(editorElement)
+    if (uploadHost) {
+      bindFileUpload(uploadHost, editorElement)
+      wireFileUploadButton(null, editorElement, uploadHost)
+    }
+    var captionHost = captionUrlFromEditor(editorElement)
+    if (captionHost) {
+      wireYoutubeCaptions(editorElement, captionHost)
+      wireFileAttachmentPills(editorElement, captionHost)
+    }
+  }
+
+  var djangoProseUploadHandlersBound = false
+  function ensureDocumentUploadHandlers() {
+    if (djangoProseUploadHandlersBound) return
+    djangoProseUploadHandlersBound = true
+    document.addEventListener("lexxy:file-accept", handleDjangoFileAccept, true)
+    document.addEventListener("dragover", handleDjangoEditorDragOver, true)
   }
 
   function uploadUrlFromEditor(el) {
@@ -633,6 +967,100 @@
       return
     }
     if (options.allowValueReset) editorElement.value = html
+  }
+
+  function getSessionUploadSgids(editorElement) {
+    try {
+      var parsed = JSON.parse(editorElement.dataset.djangoProseSessionUploads || "[]")
+      return Array.isArray(parsed) ? parsed : []
+    } catch (e) {
+      return []
+    }
+  }
+
+  function trackSessionUpload(editorElement, sgid) {
+    if (!sgid) return
+    var list = getSessionUploadSgids(editorElement)
+    if (list.indexOf(sgid) === -1) list.push(sgid)
+    editorElement.dataset.djangoProseSessionUploads = JSON.stringify(list)
+  }
+
+  function extractSgidsFromHtml(html) {
+    if (!html) return []
+    var sgids = []
+    var prosePattern = /<prose-attachment\b[^>]*\ssgid=["']([^"']+)["']/gi
+    var dataPattern = /data-prose-sgid=["']([^"']+)["']/gi
+    var match
+    while ((match = prosePattern.exec(html)) !== null) sgids.push(match[1])
+    while ((match = dataPattern.exec(html)) !== null) sgids.push(match[1])
+    return sgids.filter(function (sgid, index, list) {
+      return list.indexOf(sgid) === index
+    })
+  }
+
+  function collectAttachmentSgidsFromDom(editorElement) {
+    var sgids = []
+    editorElement.querySelectorAll("prose-attachment[sgid]").forEach(function (node) {
+      var sgid = node.getAttribute("sgid")
+      if (sgid) sgids.push(sgid)
+    })
+    editorElement.querySelectorAll("figure[data-prose-sgid]").forEach(function (node) {
+      var sgid = node.getAttribute("data-prose-sgid")
+      if (sgid) sgids.push(sgid)
+    })
+    return sgids.filter(function (sgid, index, list) {
+      return list.indexOf(sgid) === index
+    })
+  }
+
+  function flushEditorValueForSubmit(editorElement) {
+    editorElement.cachedValue = null
+    var html = editorElement.value || ""
+    setEditorFormValue(editorElement, html, { allowValueReset: true })
+    return html
+  }
+
+  function computeSessionAbandonedSgids(editorElement) {
+    var domSgids = collectAttachmentSgidsFromDom(editorElement)
+    var valueSgids = extractSgidsFromHtml(editorElement.value || "")
+    return getSessionUploadSgids(editorElement).filter(function (sgid) {
+      return domSgids.indexOf(sgid) === -1 && valueSgids.indexOf(sgid) === -1
+    })
+  }
+
+  function prepareEditorForSave(editorElement) {
+    var captionHost = captionUrlFromEditor(editorElement)
+    if (captionHost) {
+      syncYoutubeCaptionsToEditorValue(editorElement, { allowValueReset: true })
+      queryYoutubeCaptionTextareas(editorElement).forEach(function (textarea) {
+        saveYoutubeCaption(textarea, captionHost)
+      })
+    }
+
+    flushEditorValueForSubmit(editorElement)
+    var abandoned = computeSessionAbandonedSgids(editorElement)
+    var fieldName = editorElement.getAttribute("name")
+    var editorId = editorElement.id
+    if (fieldName && editorId) {
+      var hidden = document.getElementById(editorId + "_prose_abandoned_sgids")
+      if (hidden) hidden.value = JSON.stringify(abandoned)
+    }
+  }
+
+  function wireEditorFormSubmit(editorElement) {
+    var form = editorElement.form || editorElement.closest("form")
+    if (!form) return
+    if (form.dataset.djangoProseEditorSubmit === "1") return
+    form.dataset.djangoProseEditorSubmit = "1"
+    form.addEventListener(
+      "submit",
+      function () {
+        form.querySelectorAll("lexxy-editor.django-prose-lexxy").forEach(function (editor) {
+          prepareEditorForSave(editor)
+        })
+      },
+      true
+    )
   }
 
   function syncYoutubeCaptionsToEditorValue(editorElement, options) {
@@ -767,32 +1195,283 @@
       observer.observe(editorElement, { childList: true, subtree: true })
     }
 
-    var form = editorElement.form || editorElement.closest("form")
-    if (form && form.dataset.djangoProseCaptionSubmit !== "1") {
-      form.dataset.djangoProseCaptionSubmit = "1"
-      form.addEventListener(
-        "submit",
-        function () {
-          syncYoutubeCaptionsToEditorValue(editorElement, { allowValueReset: true })
-          queryYoutubeCaptionTextareas(editorElement).forEach(function (textarea) {
-            saveYoutubeCaption(textarea, captionHost)
-          })
-        },
-        true
-      )
+    wireEditorFormSubmit(editorElement)
+
+    bindAll()
+  }
+
+  var FILE_PILL_NAME_INPUT_SELECTOR =
+    "figure.django-prose-file-pill .django-prose-file-pill__name"
+
+  function isFilePillNameInput(node) {
+    if (!node || !node.closest) return false
+    return !!node.closest("figure.django-prose-file-pill")
+  }
+
+  function queryFilePillNameInputs(editorElement) {
+    var roots = []
+    collectQueryRoots(editorElement, roots)
+    var seen = []
+    var inputs = []
+    roots.forEach(function (root) {
+      if (!root.querySelectorAll) return
+      root.querySelectorAll(FILE_PILL_NAME_INPUT_SELECTOR).forEach(function (input) {
+        if (seen.indexOf(input) === -1) {
+          seen.push(input)
+          inputs.push(input)
+        }
+      })
+    })
+    return inputs
+  }
+
+  function resolveFilePillSgid(node) {
+    var figure = node.closest("figure[data-prose-sgid]")
+    if (figure) {
+      var fromFigure = figure.getAttribute("data-prose-sgid")
+      if (fromFigure) return fromFigure
+    }
+    var attachment = node.closest("prose-attachment")
+    if (attachment) {
+      var fromTag = attachment.getAttribute("sgid")
+      if (fromTag) return fromTag
+    }
+    return ""
+  }
+
+  function clickLexxyAttachmentDelete(host) {
+    if (!host) return false
+    var deleteHost = host.querySelector("lexxy-node-delete-button")
+    if (!deleteHost) return false
+    var btn = deleteHost.querySelector("button.lexxy-node-delete")
+    if (!btn) return false
+    var prevPointerEvents = deleteHost.style.pointerEvents
+    var prevDisplay = deleteHost.style.display
+    deleteHost.style.pointerEvents = "auto"
+    deleteHost.style.display = "block"
+    btn.click()
+    deleteHost.style.pointerEvents = prevPointerEvents
+    deleteHost.style.display = prevDisplay
+    return true
+  }
+
+  function resolveAttachmentSgid(node) {
+    var sgid = resolveFilePillSgid(node)
+    if (sgid) return sgid
+    var attachment = node.closest("prose-attachment")
+    if (attachment) return attachment.getAttribute("sgid") || ""
+    var figure = node.closest("figure[data-prose-sgid]")
+    if (figure) return figure.getAttribute("data-prose-sgid") || ""
+    return ""
+  }
+
+  function purgeAttachmentFromEditorValue(editorElement, sgid) {
+    if (!sgid || !editorElement) return false
+    var html = editorElement.value || ""
+    if (!html || html.indexOf(sgid) === -1) return false
+
+    var escaped = sgid.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    var next = html
+    next = next.replace(
+      new RegExp(
+        "<prose-attachment\\b[^>]*\\ssgid=[\"']" + escaped + "[\"'][^>]*>\\s*</prose-attachment>",
+        "gi"
+      ),
+      ""
+    )
+    next = next.replace(
+      new RegExp(
+        "<prose-attachment\\b[^>]*\\ssgid=[\"']" + escaped + "[\"'][^>]*/?>",
+        "gi"
+      ),
+      ""
+    )
+    next = next.replace(
+      new RegExp(
+        "<figure\\b[^>]*\\bdata-prose-sgid=[\"']" + escaped + "[\"'][^>]*>.*?</figure>",
+        "gi"
+      ),
+      ""
+    )
+    if (next === html) return false
+    setEditorFormValue(editorElement, stripYoutubeDuplicateCaptions(next), {
+      allowValueReset: true,
+    })
+    return true
+  }
+
+  function removeProseAttachmentFrom(node) {
+    var editorElement = node.closest("lexxy-editor.django-prose-lexxy")
+    var sgid = resolveAttachmentSgid(node)
+    var attachmentHost = node.closest("prose-attachment")
+    var figure = node.closest(
+      "figure.attachment, figure.django-prose-file-pill, figure[data-prose-sgid]"
+    )
+    var lexxyClicked = false
+
+    if (attachmentHost && clickLexxyAttachmentDelete(attachmentHost)) {
+      lexxyClicked = true
+    }
+    if (!lexxyClicked && figure) {
+      if (clickLexxyAttachmentDelete(figure)) lexxyClicked = true
+      else {
+        var hostFromFigure = figure.closest("prose-attachment")
+        if (hostFromFigure && clickLexxyAttachmentDelete(hostFromFigure)) {
+          lexxyClicked = true
+        }
+      }
+    }
+
+    function finishRemove() {
+      var valueHasSgid =
+        sgid && editorElement && (editorElement.value || "").indexOf(sgid) !== -1
+      if (valueHasSgid && editorElement) {
+        purgeAttachmentFromEditorValue(editorElement, sgid)
+      }
+      if (editorElement && typeof editorElement.focus === "function") editorElement.focus()
+    }
+
+    if (lexxyClicked) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(finishRemove)
+      })
+      return
+    }
+
+    if (sgid && editorElement) purgeAttachmentFromEditorValue(editorElement, sgid)
+    finishRemove()
+  }
+
+  function saveFilePillName(input, captionHost) {
+    if (!captionHost) return
+    var sgid = resolveFilePillSgid(input)
+    if (!sgid) return
+    var caption = input.value.trim()
+    var lastSaved = input.dataset.djangoProseCaptionSaved || ""
+    if (caption === lastSaved) return
+
+    postJson(
+      captionHost,
+      { sgid: sgid, caption: caption },
+      function () {
+        input.dataset.djangoProseCaptionSaved = caption
+      },
+      function () {}
+    )
+  }
+
+  function bindFilePillNameInput(input, captionHost) {
+    if (input.dataset.djangoProseFilePillBound === "1") return
+    input.dataset.djangoProseFilePillBound = "1"
+    input.dataset.djangoProseCaptionSaved = input.value.trim()
+
+    input.addEventListener("blur", function () {
+      saveFilePillName(input, captionHost)
+    })
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault()
+        event.stopPropagation()
+        input.blur()
+      }
+    })
+  }
+
+  function bindFilePillRemoveButton(button) {
+    if (button.dataset.djangoProseFilePillRemoveBound === "1") return
+    button.dataset.djangoProseFilePillRemoveBound = "1"
+    button.addEventListener("click", function (event) {
+      event.preventDefault()
+      event.stopPropagation()
+      removeProseAttachmentFrom(button)
+    })
+  }
+
+  function bindFilePillControls(root, captionHost) {
+    if (!root.querySelectorAll) return
+    root.querySelectorAll(FILE_PILL_NAME_INPUT_SELECTOR).forEach(function (input) {
+      bindFilePillNameInput(input, captionHost)
+    })
+    root.querySelectorAll("figure.django-prose-file-pill .django-prose-file-pill__remove").forEach(
+      bindFilePillRemoveButton
+    )
+  }
+
+  function isolateFilePillsFromLexxy(editorElement) {
+    if (editorElement.dataset.djangoProseFilePillIsolate === "1") return
+    editorElement.dataset.djangoProseFilePillIsolate = "1"
+
+    editorElement.addEventListener(
+      "mousedown",
+      function (event) {
+        if (isFilePillNameInput(event.target) || event.target.closest(".django-prose-file-pill__remove")) {
+          event.stopPropagation()
+        }
+      },
+      true
+    )
+    editorElement.addEventListener(
+      "click",
+      function (event) {
+        if (isFilePillNameInput(event.target) || event.target.closest(".django-prose-file-pill__remove")) {
+          event.stopPropagation()
+        }
+      },
+      true
+    )
+  }
+
+  function wireFileAttachmentPills(editorElement, captionHost) {
+    if (!captionHost) return
+
+    isolateFilePillsFromLexxy(editorElement)
+
+    function bindAll() {
+      var roots = []
+      collectQueryRoots(editorElement, roots)
+      roots.forEach(function (root) {
+        bindFilePillControls(root, captionHost)
+      })
+    }
+
+    if (editorElement.dataset.djangoProseFilePillWired === "1") {
+      bindAll()
+      return
+    }
+    editorElement.dataset.djangoProseFilePillWired = "1"
+
+    editorElement.addEventListener("lexxy:initialize", bindAll)
+    editorElement.addEventListener("lexxy:change", bindAll)
+
+    if (typeof MutationObserver !== "undefined") {
+      var observer = new MutationObserver(bindAll)
+      observer.observe(editorElement, { childList: true, subtree: true })
     }
 
     bindAll()
   }
 
   function parsePermittedTypes(el) {
-    var raw = el.dataset.permittedAttachmentTypes || el.getAttribute("data-permitted-attachment-types") || ""
-    if (!raw) return null
-    try {
-      return JSON.parse(raw)
-    } catch (e) {
-      return null
+    var raw = el.getAttribute("data-permitted-attachment-types")
+    if (raw == null) {
+      raw = el.dataset.permittedAttachmentTypes || ""
     }
+    if (!raw) return []
+    raw = String(raw).trim()
+    if (!raw) return []
+    if (raw.charAt(0) === "[" || raw.charAt(0) === "{") {
+      try {
+        var parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          return parsed.filter(function (item) {
+            return item && String(item).trim()
+          })
+        }
+      } catch (e) {}
+    }
+    return raw.split(/[\s,]+/).filter(function (item) {
+      return item && String(item).trim()
+    })
   }
 
   import(LEXXY_MODULE)
@@ -810,11 +1489,10 @@
 
         constructor(editorElement) {
           super(editorElement)
-          var uploadHost = uploadUrlFromEditor(editorElement)
-          var captionHost = captionUrlFromEditor(editorElement)
-          if (uploadHost) bindFileUpload(uploadHost, editorElement)
-          if (captionHost) wireYoutubeCaptions(editorElement, captionHost)
+          setupDjangoProseEditor(editorElement)
           editorElement.addEventListener("lexxy:initialize", function () {
+            setupDjangoProseEditor(editorElement)
+            applyLexxyEditable(editorElement)
             var current = editorElement.getAttribute("value")
             if (!current) return
             var stripped = stripYoutubeDuplicateCaptions(current)
@@ -833,6 +1511,8 @@
         }
       }
 
+      ensureDocumentUploadHandlers()
+
       Lexxy.configure({
         global: {
           attachmentTagName: "prose-attachment",
@@ -842,23 +1522,24 @@
         default: {
           attachments: true,
           toolbar: { upload: "file" },
-          permittedAttachmentTypes: [
-            "image/*",
-            "video/*",
-            "application/*",
-            YOUTUBE_CONTENT_TYPE,
-          ],
+          // Lexxy 0.9.14 matches MIME types literally; django-prose validates in
+          // lexxy:file-accept (wildcards supported) via handleDjangoFileAccept.
+          permittedAttachmentTypes: null,
         },
       })
 
       bootstrapInitialValues()
 
       document.querySelectorAll("lexxy-editor.django-prose-lexxy").forEach(function (el) {
-        var permitted = parsePermittedTypes(el)
-        if (permitted && permitted.length) {
-          el.setAttribute("permitted-attachment-types", permitted.join(","))
-        }
+        setupDjangoProseEditor(el)
+        el.addEventListener("lexxy:initialize", function () {
+          setupDjangoProseEditor(el)
+        })
       })
     })
-    .catch(function () {})
+    .catch(function (err) {
+      if (typeof console !== "undefined" && console.error) {
+        console.error("django-prose: failed to load Lexxy from " + LEXXY_MODULE, err)
+      }
+    })
 })()
