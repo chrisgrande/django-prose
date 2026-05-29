@@ -1,5 +1,5 @@
 ;(function () {
-  var LEXXY_MODULE = "https://esm.sh/@37signals/lexxy@0.9.0-beta"
+  var LEXXY_MODULE = "https://esm.sh/@37signals/lexxy@0.9.9-beta-preview1"
   var YOUTUBE_CONTENT_TYPE = "application/vnd.prose.youtube"
   var FILE_ATTACHMENT_ICON_SVG =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +

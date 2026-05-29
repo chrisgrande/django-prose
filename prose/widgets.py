@@ -5,6 +5,11 @@ from django.forms.widgets import Textarea
 
 from prose.content import hydrate_editor_attachments
 
+LEXXY_VERSION = "0.9.9-beta-preview1"
+LEXXY_STYLESHEET_URL = (
+    f"https://unpkg.com/@37signals/lexxy@{LEXXY_VERSION}/dist/stylesheets/lexxy.css"
+)
+
 
 class RichTextEditor(Textarea):
     template_name = "prose/forms/widgets/editor.html"
@@ -24,7 +29,7 @@ class RichTextEditor(Textarea):
     class Media:
         css = {
             "all": (
-                "https://unpkg.com/@37signals/lexxy@0.9.0-beta/dist/stylesheets/lexxy.css",
+                LEXXY_STYLESHEET_URL,
                 "prose/editor.css",
             ),
         }

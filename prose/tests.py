@@ -863,6 +863,32 @@ class RichTextEditorWidgetTests(TestCase):
         self.assertIn("iframe", value)
 
 
+class RichTextFieldLexxySanitizerTests(TestCase):
+    def test_preserves_tables_dividers_and_underline(self):
+        raw = (
+            '<figure class="lexxy-content__table-wrapper">'
+            "<table><tbody><tr><td><u>Cell value</u></td></tr></tbody></table>"
+            "</figure>"
+            "<hr>"
+        )
+        sanitized = sanitize_rich_text_html(raw)
+        self.assertIn("<table>", sanitized)
+        self.assertIn("<td><u>Cell value</u></td>", sanitized)
+        self.assertIn("<hr>", sanitized)
+
+    def test_preserves_lexxy_color_styles(self):
+        raw = (
+            '<p><span style="color: rgb(255, 0, 0); background-color: rgb(255, 255, 0)">'
+            "Highlighted"
+            "</span></p>"
+        )
+        sanitized = sanitize_rich_text_html(raw)
+        self.assertIn(
+            'style="color: rgb(255, 0, 0); background-color: rgb(255, 255, 0);"',
+            sanitized,
+        )
+
+
 class RichTextFieldTests(TestCase):
     def test_pre_save_sanitizes(self):
         class Article(models.Model):

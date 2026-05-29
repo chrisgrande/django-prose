@@ -16,6 +16,7 @@ include = [
 python = "^3.8"
 django = ">=3.2"
 bleach = ">=4.0"
+tinycss2 = ">=1.1.0"
 
 [tool.poetry.dev-dependencies]
 black = "^24.8.0"

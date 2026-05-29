@@ -1,7 +1,6 @@
-from django import forms
-from django.conf import settings
-from django.db import models
 import bleach
+from bleach.css_sanitizer import CSSSanitizer
+from django.db import models
 
 from prose.widgets import RichTextEditor
 
@@ -21,8 +20,14 @@ ALLOWED_TAGS = [
     "pre",
     "figure",
     "figcaption",
-    "textarea",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
     "br",
+    "hr",
     "code",
     "h1",
     "h2",
@@ -33,7 +38,11 @@ ALLOWED_TAGS = [
     "picture",
     "source",
     "img",
+    "s",
     "del",
+    "u",
+    "mark",
+    "textarea",
     "button",
     PROSE_ATTACHMENT_TAG,
     "iframe",
@@ -42,9 +51,11 @@ ALLOWED_TAGS = [
 ALLOWED_ATTRIBUTES = {
     "*": [
         "class",
+        "style",
         "data-content-type",
         "data-prose-sgid",
         "data-prose-content-type",
+        "data-prose-caption",
         "type",
         "aria-label",
         "title",
@@ -54,7 +65,10 @@ ALLOWED_ATTRIBUTES = {
     ],
     "a": ["href", "title", "target", "rel"],
     "img": ["alt", "src", "srcset", "width", "height"],
-    "source": ["src", "srcset", "media", "type"],
+    "source": ["media", "src", "srcset", "type"],
+    "video": ["controls", "src"],
+    "th": ["colspan", "rowspan"],
+    "td": ["colspan", "rowspan"],
     "iframe": [
         "src",
         "title",
@@ -82,8 +96,17 @@ ALLOWED_ATTRIBUTES = {
     ],
 }
 
+ALLOWED_CSS_PROPERTIES = [
+    "color",
+    "background-color",
+]
+
+_CSS_SANITIZER = CSSSanitizer(allowed_css_properties=ALLOWED_CSS_PROPERTIES)
+
 
 def _embed_iframe_src_ok(src):
+    from django.conf import settings
+
     if not src:
         return False
     prefixes = getattr(
@@ -118,6 +141,7 @@ def sanitize_rich_text_html(raw_html):
         canonical,
         tags=ALLOWED_TAGS,
         attributes=_bleach_attributes,
+        css_sanitizer=_CSS_SANITIZER,
         strip=True,
     )
 
