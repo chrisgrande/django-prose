@@ -185,11 +185,32 @@ PROSE_PERMITTED_ATTACHMENT_TYPES = [
 ]
 ```
 
-### Embeds (YouTube)
+### Embeds
 
-Supported URLs (YouTube: `youtube.com`, `youtu.be`, Shorts) can be embedded from the **Link** toolbar popover: enter the URL and click **Embed** when the server recognizes it (`GET /prose/embed/check/`). Pasting a URL only creates a normal link; embedding is never automatic on paste. Embeds are stored as `<prose-attachment>` with a sandboxed `youtube-nocookie.com` player.
+URL-based embeds (YouTube is built in) are stored as `Attachment` rows and referenced in HTML with `<prose-attachment sgid="…">`, the same as uploaded files. In the editor, paste only creates a normal link; embedding is always explicit from the **Link** toolbar popover — enter a URL and click **Embed** when the server recognizes it.
 
-Add custom embed providers by implementing a class with `match(url)`, `create_attachment(url)`, and `render_html(attachment)`, then register it in settings:
+**Endpoints**
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/prose/embed/check/?url=…` | Returns `{"embeddable": true/false}` for the Link popover |
+| `POST` | `/prose/embed/` | Creates an embed attachment from `{"url": "…"}` |
+
+YouTube (`youtube.com`, `youtu.be`, Shorts) is included by default. Embeds use a sandboxed `youtube-nocookie.com` player with in-editor captions.
+
+#### Adding your own embed provider
+
+An embed provider teaches Django Prose how to recognize a URL, persist an `Attachment`, and render HTML for the editor and public pages. Implement three methods and register the dotted path in settings.
+
+**Provider interface**
+
+| Method | Purpose |
+| --- | --- |
+| `match(url) -> bool` | Return `True` when this provider should handle the URL |
+| `create_attachment(url) -> Attachment \| None` | Parse the URL, create an `Attachment` row, return it (or `None` on failure) |
+| `render_html(attachment) -> str` | Return HTML to insert in the Lexxy editor (usually a `<figure>` with an `iframe` or preview) |
+
+Register providers in order — the first match wins:
 
 ```python
 PROSE_EMBED_PROVIDERS = [
@@ -198,7 +219,189 @@ PROSE_EMBED_PROVIDERS = [
 ]
 ```
 
-### Extensible attachables (mentions, custom embeds)
+When `PROSE_EMBED_PROVIDERS` is set, it **replaces** the default list entirely. Include YouTube explicitly if you still want it.
+
+**1. Choose a vendor content type**
+
+Use `vendor_content_type()` so your embed type is namespaced and does not collide with MIME types:
+
+```python
+from prose.attachables import vendor_content_type
+
+VIMEO_CONTENT_TYPE = vendor_content_type("vimeo")
+# → "application/vnd.prose.vimeo"  (namespace from PROSE_ATTACHMENT_CONTENT_TYPE_NAMESPACE)
+```
+
+**2. Create the provider**
+
+Store everything needed to render later in `Attachment.metadata`. Set `filename` to a human title. Embeds do not use `Attachment.file`.
+
+```python
+# myapp/embeds/vimeo.py
+import re
+from urllib.parse import urlparse
+
+from prose.attachables import vendor_content_type
+from prose.models import Attachment
+
+VIMEO_CONTENT_TYPE = vendor_content_type("vimeo")
+VIMEO_EMBED_PREFIX = "https://player.vimeo.com/video/"
+
+
+def parse_vimeo_id(url):
+    parsed = urlparse(url)
+    if parsed.hostname and "vimeo.com" in parsed.hostname:
+        match = re.search(r"/(\d+)", parsed.path)
+        if match:
+            return match.group(1)
+    return None
+
+
+def render_vimeo_figure(attachment, *, context="display"):
+    """Shared HTML for editor insertion and public display."""
+    video_id = (attachment.metadata or {}).get("video_id")
+    if not video_id:
+        return ""
+    title = attachment.metadata.get("title") or attachment.filename or "Vimeo video"
+    canonical = attachment.metadata.get("canonical_url") or attachment.url
+    embed_src = f"{VIMEO_EMBED_PREFIX}{video_id}"
+
+    if context in ("editor", "paste"):
+        caption = attachment.metadata.get("title") or ""
+        return (
+            f'<figure class="attachment attachment--embed attachment--preview attachment--vimeo" '
+            f'data-prose-sgid="{attachment.attachable_sgid}" '
+            f'data-prose-content-type="{attachment.content_type}"'
+            f'{" data-prose-caption=\"" + caption + "\"" if caption else ""}>'
+            f'<div class="attachment__container">'
+            f'<iframe src="{embed_src}" title="{title}" width="560" height="315" '
+            f'frameborder="0" allow="autoplay; fullscreen; picture-in-picture" '
+            f'allowfullscreen loading="lazy"></iframe>'
+            f"</div>"
+            f'<figcaption class="attachment__caption">'
+            f'<textarea class="django-prose-youtube-caption__input" rows="1" '
+            f'placeholder="Add caption…"></textarea>'
+            f"</figcaption></figure>"
+        )
+
+    return (
+        f'<figure class="attachment attachment--embed attachment--vimeo">'
+        f'<div class="attachment__container">'
+        f'<iframe src="{embed_src}" title="{title}" width="560" height="315" '
+        f'frameborder="0" allow="autoplay; fullscreen; picture-in-picture" '
+        f'allowfullscreen loading="lazy"></iframe>'
+        f"</div>"
+        f'<figcaption class="attachment__caption">'
+        f'<a href="{canonical}">{title}</a>'
+        f"</figcaption></figure>"
+    )
+
+
+class VimeoEmbedProvider:
+    def match(self, url):
+        return parse_vimeo_id(url) is not None
+
+    def create_attachment(self, url):
+        video_id = parse_vimeo_id(url)
+        if not video_id:
+            return None
+        canonical_url = f"https://vimeo.com/{video_id}"
+        title = f"Vimeo video {video_id}"  # replace with oEmbed/API lookup if you prefer
+        return Attachment.objects.create(
+            content_type=VIMEO_CONTENT_TYPE,
+            filename=title,
+            byte_size=0,
+            metadata={
+                "provider": "vimeo",
+                "video_id": video_id,
+                "canonical_url": canonical_url,
+                "embed_url": f"{VIMEO_EMBED_PREFIX}{video_id}",
+                "title": title,
+                "url": canonical_url,
+                "previewable": True,
+            },
+        )
+
+    def render_html(self, attachment):
+        return render_vimeo_figure(attachment, context="editor")
+```
+
+**3. Teach `Attachment` how to render on the public site**
+
+The embed API calls `render_html()` when a user clicks **Embed**. When published HTML is rendered, `{% prose_attachments %}` calls `Attachment.render_attachment_html()` instead. Hook your content type in `AppConfig.ready()`:
+
+```python
+# myapp/apps.py
+from django.apps import AppConfig
+
+from prose.models import Attachment
+
+from myapp.embeds.vimeo import VIMEO_CONTENT_TYPE, render_vimeo_figure
+
+
+class MyAppConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "myapp"
+
+    def ready(self):
+        _original = Attachment.render_attachment_html
+
+        def render_attachment_html(self, *, context="display"):
+            if self.content_type == VIMEO_CONTENT_TYPE:
+                return render_vimeo_figure(self, context=context)
+            return _original(self, context=context)
+
+        Attachment.render_attachment_html = render_attachment_html
+```
+
+YouTube uses dedicated templates under `prose/templates/prose/attachments/` plus extra save/load canonicalization in django-prose itself. For app-local providers, the `AppConfig` hook above is the supported way to wire up display rendering without forking the package.
+
+**4. Allow iframe sources through the sanitizer**
+
+Bleach only keeps `iframe` tags whose `src` starts with a configured prefix:
+
+```python
+PROSE_EMBED_IFRAME_SRC_PREFIXES = [
+    "https://www.youtube-nocookie.com/embed/",
+    "https://player.vimeo.com/video/",
+]
+```
+
+**5. (Optional) Gate who can embed**
+
+```python
+def prose_upload_allowed(request):
+    return request.user.is_staff
+
+PROSE_UPLOAD_PERMISSION = "myapp.permissions.prose_upload_allowed"
+```
+
+This applies to uploads and embed endpoints.
+
+#### How embed insertion works
+
+1. User enters a URL in the Link popover → `GET /prose/embed/check/` runs `match()` on each provider.
+2. **Embed** appears when a provider matches.
+3. `POST /prose/embed/` calls `create_attachment()` then returns JSON including `sgid`, `html`, `editor_html`, and attachment metadata.
+4. The Lexxy loader inserts `editor_html` (or builds a `<prose-attachment>` wrapper around `html`). The HTML must include an `<iframe>` for rich insertion.
+5. On save, HTML is sanitized and attachment links are synced. Stored embeds are empty `<prose-attachment sgid="…">` wrappers (YouTube has additional caption canonicalization built in).
+6. On the public site, `|prose_attachments` resolves each tag via `render_attachment_html(context="display")`.
+
+#### Embed vs file vs attachable
+
+| Mechanism | Use for | Stored as |
+| --- | --- | --- |
+| **Embed provider** | External URLs (YouTube, Vimeo, maps, …) | `Attachment` row + signed ID |
+| **File upload** | User-uploaded files (PDF, images, …) | `Attachment` row + signed ID |
+| **`AttachableMixin`** | Your own models (mentions, records, …) | Your model row + signed ID |
+
+Embed providers and file uploads both use `prose.Attachment`. `AttachableMixin` is for referencing arbitrary Django models inline — see below.
+
+#### Reference: YouTube provider
+
+See [`prose/embeds/youtube.py`](prose/embeds/youtube.py) and [`prose/templates/prose/attachments/youtube*.html`](prose/templates/prose/attachments/) for the full production implementation, including oEmbed title lookup, nocookie embed URLs, caption editing, and save-time deduplication of duplicate caption text.
+
+### Extensible attachables (mentions, inline references)
 
 Use `AttachableMixin` on your own models and register them so rich text can reference them by signed ID (like Action Text attachables):
 
@@ -221,11 +424,7 @@ class MyAppConfig(AppConfig):
 
 In your form template, add Lexxy prompts with `{% load prose_attachments %}` and `{% attachable_sgid person %}` on each `lexxy-prompt-item` (see [Lexxy inline attachments](https://basecamp.github.io/lexxy/prompts/inline-attachments.html)).
 
-Optional settings:
-
-- `PROSE_PERMITTED_ATTACHMENT_TYPES` — MIME patterns allowed in the editor (drag/drop and upload). Replaces defaults when set; supports wildcards (`image/*`, `application/*`).
-- `PROSE_EMBED_IFRAME_SRC_PREFIXES` — allowed `iframe` `src` prefixes when sanitizing (default: YouTube nocookie embeds).
-- `PROSE_UPLOAD_PERMISSION` — dotted path to a callable `(request) -> bool` for upload/embed authorization.
+Attachables are separate from URL embed providers (above): they reference your own models, not external URLs.
 
 #### Editor appearance (`PROSE_EDITOR_THEME`)
 
