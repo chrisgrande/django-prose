@@ -7,7 +7,7 @@ from urllib.parse import unquote, urlparse
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 
-from prose.attachables import resolve_attachable, vendor_content_type
+from prose.attachables import AttachableMixin, resolve_attachable, vendor_content_type
 from prose.attachment_types import normalize_upload_content_type
 
 PROSE_ATTACHMENT_TAG = "prose-attachment"
@@ -259,6 +259,8 @@ def editor_embed_html(attachment):
     """HTML to insert into Lexxy for a newly created embed attachment."""
     if _is_youtube_attachment(attachment):
         return _lexxy_editor_youtube_element(attachment)
+    if _is_custom_attachable(attachment):
+        return _lexxy_editor_custom_attachment_element(attachment)
     return _prose_attachment_element(attachment, inner_context="editor")
 
 
@@ -282,6 +284,26 @@ def _lexxy_editor_youtube_element(attachment):
         attr_parts.append(f'presentation="{escape(str(attrs["presentation"]))}"')
     # Caption lives in content= (figcaption textarea). A caption= attribute makes
     # Lexxy mirror it as document plain text below the embed.
+    return f"<{PROSE_ATTACHMENT_TAG} {' '.join(attr_parts)}></{PROSE_ATTACHMENT_TAG}>"
+
+
+def _is_custom_attachable(obj):
+    return isinstance(obj, AttachableMixin)
+
+
+def _lexxy_editor_custom_attachment_element(obj):
+    """
+    Lexxy editor HTML for attachables (mentions, etc.): prose-attachment with a
+    content= attribute (CustomActionTextAttachmentNode). Inner HTML in the tag
+    body is ignored by Lexxy on load.
+    """
+    inner = obj.render_attachment_html(context="editor")
+    attrs = obj.to_attachment_attributes()
+    attr_parts = [
+        f'sgid="{escape(attrs["sgid"])}"',
+        f'content-type="{escape(attrs["content-type"])}"',
+        f'content="{escape(inner, quote=True)}"',
+    ]
     return f"<{PROSE_ATTACHMENT_TAG} {' '.join(attr_parts)}></{PROSE_ATTACHMENT_TAG}>"
 
 
@@ -553,6 +575,23 @@ def canonicalize_youtube_for_storage(html):
     return _strip_duplicate_youtube_captions(html)
 
 
+def canonicalize_attachables_for_storage(html):
+    """Normalize custom attachables to empty prose-attachment wrappers for storage."""
+    if not html or PROSE_ATTACHMENT_TAG not in html:
+        return html
+
+    def normalize_attachable_tag(match):
+        attrs_str = match.group(1)
+        obj = _attachment_from_attrs(attrs_str)
+        if obj is None or not _is_custom_attachable(obj):
+            return match.group(0)
+        return _prose_attachment_element(obj, inner_context="display")
+
+    html = _youtube_prose_attachment_pattern().sub(normalize_attachable_tag, html)
+    html = _LEXXY_PROSE_ATTACHMENT_EXPORT.sub(normalize_attachable_tag, html)
+    return html
+
+
 def canonicalize_legacy_attachments(html):
     """Migrate Trix / legacy inline attachments to stored prose-attachment tags."""
     if not html:
@@ -744,9 +783,10 @@ def sync_attachments_for_instance(
 
 def hydrate_editor_attachments(html):
     """
-    Prepare HTML for the Lexxy editor. YouTube uses prose-attachment with a
-    content= attribute so Lexxy keeps the iframe. Other attachments keep the
-    prose-attachment wrapper with hydrated inner HTML.
+    Prepare HTML for the Lexxy editor. YouTube and custom attachables (mentions,
+    etc.) use prose-attachment with a content= attribute so Lexxy's
+    CustomActionTextAttachmentNode can render them. File and image attachments
+    keep hydrated inner HTML inside the tag wrapper.
     """
     if not html:
         return html
@@ -780,17 +820,24 @@ def hydrate_editor_attachments(html):
             return match.group(0)
         if _is_youtube_attachment(obj):
             return _lexxy_editor_youtube_element(obj)
+        if _is_custom_attachable(obj):
+            return _lexxy_editor_custom_attachment_element(obj)
         if inner and ("iframe" in inner or "<img" in inner):
             return match.group(0)
         rendered = obj.render_attachment_html(context="editor")
         return f"<{PROSE_ATTACHMENT_TAG}{attrs_str}>{rendered}</{PROSE_ATTACHMENT_TAG}>"
 
     def replace_lexxy_export(match):
-        obj = _youtube_attachment_from_attrs(match.group(1))
+        attrs_str = match.group(1)
+        obj = _attachment_from_attrs(attrs_str)
+        if obj is None:
+            obj = _youtube_attachment_from_attrs(attrs_str)
         if obj is None:
             return match.group(0)
         if _is_youtube_attachment(obj):
             return _lexxy_editor_youtube_element(obj)
+        if _is_custom_attachable(obj):
+            return _lexxy_editor_custom_attachment_element(obj)
         return match.group(0)
 
     html = pattern.sub(replace_tag, html)

@@ -22,7 +22,9 @@
     {{ attr_name }}="{{ attr_value }}"
     {% endfor %}
     {% if widget.attrs.placeholder %}placeholder="{{ widget.attrs.placeholder }}"{% endif %}
-  ></lexxy-editor>
+  >
+    {% if widget.prompts %}{{ widget.prompts|safe }}{% endif %}
+  </lexxy-editor>
   <input
     type="hidden"
     name="{{ widget.name }}_prose_abandoned_sgids"

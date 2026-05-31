@@ -64,6 +64,7 @@ from django.core.files.storage import default_storage
 from prose.content import (
     _storage_path_from_media_url,
     _sync_youtube_caption_metadata,
+    canonicalize_attachables_for_storage,
     canonicalize_youtube_for_storage,
     cleanup_abandoned_attachments,
     cleanup_attachments_for_instance,
@@ -122,7 +123,8 @@ class AttachmentTypesTests(TestCase):
     @override_settings(PROSE_PERMITTED_ATTACHMENT_TYPES=["application/pdf"])
     def test_custom_permitted_types_replace_defaults(self):
         permitted = get_permitted_attachment_types()
-        self.assertEqual(permitted, ["application/pdf"])
+        self.assertIn("application/pdf", permitted)
+        self.assertNotIn("image/*", permitted)
 
 
 class WidgetPermittedTypesTests(TestCase):
@@ -1348,3 +1350,131 @@ class CleanupAbandonedAttachmentsTests(TestCase):
             len(cleanup_abandoned_attachments(minimum_age=timedelta(hours=0), dry_run=True)),
             1,
         )
+
+
+class InlineAttachablePromptTests(TestCase):
+    def setUp(self):
+        registry.register(vendor_content_type("mention"), type("Mention", (), {}))
+
+    def _person(self, *, pk=1, person_name="Jane Doe", person_initials="JD"):
+        person_name = person_name
+        person_initials = person_initials
+
+        class Person(AttachableMixin):
+            attachment_name = "mention"
+
+            class _meta:
+                app_label = "prose"
+                model_name = "person"
+
+            def __init__(self):
+                self.name = person_name
+                self.initials = person_initials
+
+            def render_attachment_html(self, *, context="display"):
+                return f"<em>{self.name}</em> ({self.initials})"
+
+            def attachment_search_text(self):
+                return f"{self.name} {self.initials}"
+
+        person = Person()
+        person.pk = pk
+        return person
+
+    def test_render_lexxy_prompt_item(self):
+        from prose.prompts import render_lexxy_prompt_item
+
+        person = self._person()
+        html = str(render_lexxy_prompt_item(person))
+        self.assertIn("lexxy-prompt-item", html)
+        self.assertIn('search="Jane Doe JD"', html)
+        self.assertIn(person.attachable_sgid, html)
+        self.assertIn('content-type="application/vnd.prose.mention"', html)
+        self.assertIn("<em>Jane Doe</em>", html)
+
+    def test_inline_attachable_prompt_render(self):
+        from prose.prompts import InlineAttachablePrompt
+
+        people = [
+            self._person(pk=1),
+            self._person(pk=2, person_name="Alex Kim", person_initials="AK"),
+        ]
+        html = str(
+            InlineAttachablePrompt(
+                trigger="@",
+                name="mention",
+                items=people,
+            ).render()
+        )
+        self.assertIn('<lexxy-prompt trigger="@" name="mention">', html)
+        self.assertEqual(html.count("<lexxy-prompt-item"), 2)
+        self.assertIn("Alex Kim AK", html)
+
+    def test_permitted_types_include_registered_attachables(self):
+        mention_type = vendor_content_type("mention")
+        with override_settings(PROSE_PERMITTED_ATTACHMENT_TYPES=["image/*"]):
+            permitted = get_permitted_attachment_types()
+        self.assertIn("image/*", permitted)
+        self.assertIn(mention_type, permitted)
+
+    def test_widget_renders_prompts_in_editor(self):
+        from prose.prompts import InlineAttachablePrompt
+
+        person = self._person()
+        prompts = InlineAttachablePrompt(
+            trigger="@",
+            name="mention",
+            items=[person],
+        ).render()
+        widget = RichTextEditor(prompts=prompts)
+        context = widget.get_context("body", "", {"id": "id_body"})
+        self.assertIn("lexxy-prompt", context["widget"]["prompts"])
+        self.assertIn("lexxy-prompt-item", context["widget"]["prompts"])
+
+    def test_render_and_hydrate_attachable_mention(self):
+        person = self._person()
+        stored = (
+            f'<p>Hello <prose-attachment sgid="{person.attachable_sgid}" '
+            f'content-type="{vendor_content_type("mention")}"></prose-attachment></p>'
+        )
+        with patch("prose.content.resolve_attachable", return_value=person):
+            rendered = render_prose_attachments(stored)
+            self.assertIn("<em>Jane Doe</em>", rendered)
+
+            hydrated = hydrate_editor_attachments(stored)
+            self.assertIn("<em>Jane Doe</em>", hydrated)
+            self.assertIn("prose-attachment", hydrated)
+            self.assertRegex(hydrated, r'<prose-attachment\b[^>]*\bcontent="')
+            self.assertNotIn(
+                f'>{person.render_attachment_html(context="editor")}</prose-attachment>',
+                hydrated,
+            )
+
+    def test_canonicalize_attachable_for_storage(self):
+        person = self._person()
+        inner = escape(person.render_attachment_html(context="editor"), quote=True)
+        raw = (
+            f'<p><prose-attachment sgid="{person.attachable_sgid}" '
+            f'content-type="{vendor_content_type("mention")}" '
+            f'content="{inner}"></prose-attachment></p>'
+        )
+        with patch("prose.content.resolve_attachable", return_value=person):
+            stored = canonicalize_attachables_for_storage(raw)
+        self.assertIn("prose-attachment", stored)
+        self.assertNotIn("content=", stored)
+        self.assertNotIn("<em>", stored)
+
+    def test_sanitize_strips_attachable_editor_content_attribute(self):
+        person = self._person()
+        inner = escape(person.render_attachment_html(context="editor"), quote=True)
+        raw = (
+            f'<p><prose-attachment sgid="{person.attachable_sgid}" '
+            f'content-type="{vendor_content_type("mention")}" '
+            f'content="{inner}"></prose-attachment></p>'
+        )
+        with patch("prose.content.resolve_attachable", return_value=person):
+            stored = sanitize_rich_text_html(raw)
+        self.assertIn("prose-attachment", stored)
+        self.assertNotIn("content=", stored)
+        self.assertNotIn("<em>", stored)
+        self.assertIn(person.attachable_sgid, stored)

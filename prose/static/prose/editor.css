@@ -259,6 +259,19 @@ figure.django-prose-file-pill .django-prose-file-pill__download {
 }
 
 /*
+ * Custom inline attachables (mentions, etc.) — no inner figure. Keep them in the
+ * text flow; the block-ish wrapper defaults above force a line break when
+ * max-inline-size is 100% of the paragraph.
+ */
+.django-prose-lexxy prose-attachment:not(:has(> figure)) {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: baseline;
+  inline-size: auto;
+  max-inline-size: none;
+}
+
+/*
  * Delete is a sibling of the inner figure. Lexxy’s default (inset-inline-start: 100%)
  * places it outside the wrapper; anchor top-right inside each attachment box instead.
  */

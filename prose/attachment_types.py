@@ -2,7 +2,7 @@
 
 from django.conf import settings
 
-from prose.attachables import vendor_content_type
+from prose.attachables import registry, vendor_content_type
 
 YOUTUBE_CONTENT_TYPE = vendor_content_type("youtube")
 
@@ -48,11 +48,20 @@ def get_permitted_attachment_types():
 
     PROSE_PERMITTED_ATTACHMENT_TYPES replaces the built-in defaults entirely
     when set; it is not merged. Wildcards such as image/* are supported.
+
+    Registered attachable content types (mentions, etc.) are always appended so
+    Lexxy prompts stay active even when a custom allowlist is configured.
     """
     custom = getattr(settings, "PROSE_PERMITTED_ATTACHMENT_TYPES", None)
     if custom is not None:
-        return [t for t in custom if t]
-    return list(DEFAULT_PERMITTED_ATTACHMENT_TYPES)
+        types = [t for t in custom if t]
+    else:
+        types = list(DEFAULT_PERMITTED_ATTACHMENT_TYPES)
+
+    for content_type in registry.content_types():
+        if content_type not in types:
+            types.append(content_type)
+    return types
 
 
 def mime_from_filename(filename):

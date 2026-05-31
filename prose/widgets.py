@@ -25,15 +25,19 @@ LEXXY_STYLESHEETS = (
 class RichTextEditor(Textarea):
     template_name = "prose/forms/widgets/editor.html"
 
-    def __init__(self, attrs=None, theme=None, lexxy=None):
+    def __init__(self, attrs=None, theme=None, lexxy=None, prompts=None):
         """
         theme: optional dict merged over PROSE_EDITOR_THEME for this widget.
         lexxy: optional dict merged over PROSE_LEXXY_EDITOR (attachments, rich_text,
                multi_line, markdown, editable, toolbar, …).
+        prompts: optional HTML (SafeString) rendered inside <lexxy-editor> as inline
+                 <lexxy-prompt> items — use prose.prompts.InlineAttachablePrompt or
+                 the {% lexxy_prompt %} template tags.
         """
         super().__init__(attrs)
         self._theme_override = theme
         self._lexxy_override = lexxy
+        self._prompts = prompts
 
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)
@@ -58,6 +62,7 @@ class RichTextEditor(Textarea):
         context["widget"]["max_upload_size_mb"] = getattr(
             settings, "PROSE_ATTACHMENT_ALLOWED_FILE_SIZE", 5
         )
+        context["widget"]["prompts"] = self._prompts
         return context
 
     class Media:

@@ -135,12 +135,14 @@ def sanitize_rich_text_html(raw_html):
     if not raw_html:
         return raw_html
     from prose.content import (
+        canonicalize_attachables_for_storage,
         canonicalize_legacy_attachments,
         canonicalize_youtube_for_storage,
     )
 
     canonical = canonicalize_legacy_attachments(raw_html)
     canonical = canonicalize_youtube_for_storage(canonical)
+    canonical = canonicalize_attachables_for_storage(canonical)
     return bleach.clean(
         canonical,
         tags=ALLOWED_TAGS,

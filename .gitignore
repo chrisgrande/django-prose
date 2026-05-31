@@ -11,3 +11,5 @@ venv/
 env/
 
 node_modules/
+
+example/staticfiles/

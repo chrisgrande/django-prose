@@ -2,6 +2,7 @@ from django.apps import apps
 from django.conf import settings
 from django.core import signing
 from django.utils.functional import cached_property
+from django.utils.html import escape
 
 ATTACHABLE_SALT = "prose.attachable"
 
@@ -59,6 +60,9 @@ class AttachableRegistry:
     def get_model(self, content_type):
         return self._by_content_type.get(content_type)
 
+    def content_types(self):
+        return list(self._by_content_type.keys())
+
     def resolve(self, sgid):
         obj = resolve_attachable(sgid)
         if obj is None:
@@ -107,3 +111,38 @@ class AttachableMixin:
 
     def attachment_search_text(self):
         return str(self)
+
+    @classmethod
+    def attachment_menu_template(cls):
+        return getattr(cls, "attachment_menu_template_path", None)
+
+    @classmethod
+    def attachment_editor_template(cls):
+        return getattr(cls, "attachment_editor_template_path", None)
+
+    def render_prompt_menu_html(self):
+        template_name = self.attachment_menu_template()
+        if template_name:
+            from prose.template_utils import render_attachable_template
+
+            return render_attachable_template(
+                template_name,
+                {self._meta.model_name: self, "attachable": self},
+            )
+        return escape(str(self))
+
+    def render_prompt_editor_html(self):
+        template_name = self.attachment_editor_template()
+        if template_name:
+            from prose.template_utils import render_attachable_template
+
+            return render_attachable_template(
+                template_name,
+                {self._meta.model_name: self, "attachable": self},
+            )
+        return self.render_attachment_html(context="editor")
+
+    @property
+    def attachment_editor_html(self):
+        """Editor representation for use in prompt item templates."""
+        return self.render_attachment_html(context="editor")

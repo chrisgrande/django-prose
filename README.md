@@ -439,26 +439,149 @@ See [`prose/embeds/youtube.py`](prose/embeds/youtube.py) and [`prose/templates/p
 
 ### Extensible attachables (mentions, inline references)
 
-Use `AttachableMixin` on your own models and register them so rich text can reference them by signed ID (like Action Text attachables):
+Use `AttachableMixin` on your own models and register them so rich text can reference them by signed ID (like Action Text attachables).
+
+**Working reference:** the [`example/`](example/) blog app implements `@` mentions end to end. Start with these files:
+
+| Step | Demo file | Purpose |
+| --- | --- | --- |
+| Model | [`example/blog/models.py`](example/blog/models.py) | `Contributor` with `AttachableMixin`, `render_attachment_html()`, `attachment_search_text()` |
+| Registry | [`example/blog/apps.py`](example/blog/apps.py) | `registry.register()` in `AppConfig.ready()` |
+| Prompt builder | [`example/blog/prompts.py`](example/blog/prompts.py) | `InlineAttachablePrompt` wired to menu/editor templates |
+| Form widget | [`example/blog/forms.py`](example/blog/forms.py) | `RichTextEditor(prompts=…)` on comment/article body fields |
+| Prompt partials | [`example/blog/templates/blog/prompts/`](example/blog/templates/blog/prompts/) | Shared `mention_chip.html` plus menu, editor, and display variants |
+| Public display | [`example/blog/templates/blog/article.html`](example/blog/templates/blog/article.html) | `\|prose_attachments\|safe` on stored HTML |
+| Editor UX (optional) | [`example/blog/static/blog/mentions.css`](example/blog/static/blog/mentions.css), [`mentions.js`](example/blog/static/blog/mentions.js) | Pill styling, inline flow, delete-on-select behaviour |
+
+The editor must have `attachments` enabled (default). If you set `PROSE_PERMITTED_ATTACHMENT_TYPES`, registered attachable content types are appended automatically so `@` prompts keep working.
+
+#### 1. Model and registry
+
+Define a mentionable model and register its vendor content type when Django starts:
 
 ```python
-from django.db import models
-from prose.attachables import AttachableMixin, registry
+# example/blog/models.py (abbreviated)
+from prose.attachables import AttachableMixin
+from prose.template_utils import render_attachable_template
 
-class Person(AttachableMixin, models.Model):
-    attachment_name = "mention"
+class Contributor(AttachableMixin, models.Model):
+    attachment_name = "mention"  # → application/vnd.prose.mention
     name = models.CharField(max_length=100)
+    initials = models.CharField(max_length=10, blank=True)
+
+    def attachment_search_text(self):
+        return f"{self.name} {self.initials}".strip()
 
     def render_attachment_html(self, *, context="display"):
-        return f'<em class="mention">{self.name}</em>'
-
-# myapp/apps.py
-class MyAppConfig(AppConfig):
-    def ready(self):
-        registry.register(Person.get_attachment_content_type(), Person)
+        template = (
+            "blog/prompts/mention_editor.html"
+            if context == "editor"
+            else "blog/prompts/mention_display.html"
+        )
+        return render_attachable_template(
+            template,
+            {"contributor": self, "attachable": self},
+        )
 ```
 
-In your form template, add Lexxy prompts with `{% load prose_attachments %}` and `{% attachable_sgid person %}` on each `lexxy-prompt-item` (see [Lexxy inline attachments](https://basecamp.github.io/lexxy/prompts/inline-attachments.html)).
+```python
+# example/blog/apps.py
+from prose.attachables import registry
+
+class BlogConfig(AppConfig):
+    def ready(self):
+        from blog.models import Contributor
+
+        registry.register(Contributor.get_attachment_content_type(), Contributor)
+```
+
+`attachment_name` sets the vendor MIME type (`application/vnd.prose.<name>`). Implement `render_attachment_html()` for both `"editor"` and `"display"` contexts — they can share markup or use separate templates as the demo does.
+
+#### 2. Inline `@` prompts on the widget
+
+Lexxy loads prompt items inside `<lexxy-editor>`. See [Lexxy inline attachments](https://basecamp.github.io/lexxy/prompts/inline-attachments.html).
+
+**Option 1 — Python helper (used in the demo)**
+
+[`example/blog/prompts.py`](example/blog/prompts.py) builds prompt markup once; [`example/blog/forms.py`](example/blog/forms.py) passes it to the widget:
+
+```python
+from prose.prompts import InlineAttachablePrompt
+from prose.widgets import RichTextEditor
+
+def mention_prompts():
+    return InlineAttachablePrompt(
+        trigger="@",
+        name="mention",
+        queryset=Contributor.objects.order_by("name"),
+        menu_template="blog/prompts/mention_menu.html",
+        editor_template="blog/prompts/mention_editor.html",
+    ).render()
+
+class CommentForm(forms.ModelForm):
+    body = forms.CharField(widget=RichTextEditor(prompts=mention_prompts()))
+```
+
+**Option 2 — Template tags inside a custom editor template**
+
+Override `RichTextEditor.template_name` or render prompts in your form template and pass HTML to `RichTextEditor(prompts=...)`. Tags:
+
+```django
+{% load prose_attachments %}
+{% lexxy_prompt trigger="@" name="mention" %}
+  {% for contributor in contributors %}
+    {% lexxy_prompt_item attachable=contributor search=contributor.attachment_search_text %}
+  {% endfor %}
+{% endlexxy_prompt %}
+```
+
+Each `lexxy-prompt-item` needs a `search` value and signed ID (`attachable` sets both). Optional `menu_template` / `editor_template` point at partials; otherwise the attachable's `render_prompt_menu_html()` and `render_attachment_html(context="editor")` are used.
+
+Default partials ship with django-prose when you do not supply your own:
+
+- [`prose/templates/prose/prompts/attachable_menu.html`](prose/templates/prose/prompts/attachable_menu.html) — popover row
+- [`prose/templates/prose/prompts/attachable_editor.html`](prose/templates/prose/prompts/attachable_editor.html) — prompt item chip (includes `{{ attachable.attachment_editor_html|safe }}`)
+- [`prose/templates/prose/attachments/attachable_editor.html`](prose/templates/prose/attachments/attachable_editor.html) — optional generic editor chip for `render_attachment_html(context="editor")`
+
+The demo instead uses a shared chip partial ([`mention_chip.html`](example/blog/templates/blog/prompts/mention_chip.html)) included from thin menu/editor/display wrappers.
+
+#### 3. Editor vs display HTML (`content=` hydration)
+
+Lexxy renders custom attachables with `CustomActionTextAttachmentNode`, which only recognizes `<prose-attachment>` tags that carry a **`content=` attribute** (HTML escaped inside the attribute, empty tag body). Inner HTML placed between opening and closing tags is ignored on load and often shows as an unknown attachment.
+
+django-prose handles the round trip for you:
+
+1. **On save** — `RichTextField` canonicalizes attachables to an empty wrapper: `<prose-attachment sgid="…" content-type="application/vnd.prose.mention"></prose-attachment>`.
+2. **On edit** — `RichTextEditor` runs `hydrate_editor_attachments()`, which resolves each wrapper and rewrites it with `content="…"` using `render_attachment_html(context="editor")`.
+3. **On display** — `{% prose_attachments %}` expands wrappers with `render_attachment_html(context="display")`.
+
+**Use DOMPurify-safe markup in editor chips.** Lexxy sanitizes the HTML inside `content=` with DOMPurify. Stick to simple inline elements such as `<span>` with `class` attributes — the demo mention pill is spans only. Avoid `<button>`, `<svg>`, and other interactive or scriptable markup inside `render_attachment_html(context="editor")`; Lexxy may strip them and the chip will not round-trip. Put icons in CSS (for example a background image on a `<span class="…__delete-icon">`) and wire delete behaviour with small page-level JavaScript instead of buttons inside the chip HTML.
+
+#### 4. Display saved mentions
+
+On public pages, resolve attachable wrappers before marking safe (see [`article.html`](example/blog/templates/blog/article.html)):
+
+```django
+{% load prose_attachments %}
+{{ comment.body|prose_attachments|safe }}
+```
+
+Stored HTML uses `<prose-attachment sgid="…" content-type="application/vnd.prose.mention">` tags; the filter resolves them via `render_attachment_html(context="display")`.
+
+Load `{{ form.media }}` on edit forms that use mention prompts, and include any attachable-specific CSS/JS on pages that render the editor ([`article_edit.html`](example/blog/templates/blog/article_edit.html) loads `mentions.css` / `mentions.js` alongside `form.media`).
+
+#### 5. Demo editor UX (copy vs customize)
+
+The example app's mention pills are **optional presentation** on top of django-prose — you do not need them for basic `@` mentions to work.
+
+| Copy as-is | Customize for your app |
+| --- | --- |
+| Model + registry + `InlineAttachablePrompt` + `\|prose_attachments\|` pipeline | Your own model fields, trigger character, and search text |
+| Separate editor/display templates (or a shared partial with context flags) | Pill colours, avatar shape, typography |
+| [`mentions.css`](example/blog/static/blog/mentions.css) rules that force inline flow (`display: inline` on `prose-attachment:has(.mention-pill--editor)`) and hide Lexxy's default `lexxy-node-delete-button` | Class names and visual design |
+| [`mentions.js`](example/blog/static/blog/mentions.js) — on selected mention, clicking the avatar triggers Lexxy's hidden delete control | Different delete affordance or keyboard behaviour |
+
+The demo delete UX is CSS-driven: when a mention is selected (`.node--selected`), CSS swaps initials for a delete icon on the avatar span and turns the avatar red; the companion JS clicks Lexxy's built-in delete button programmatically. File uploads use `<button>`/`<svg>` pills because django-prose controls that markup server-side; custom attachables should follow the span-based pattern in [`mention_chip.html`](example/blog/templates/blog/prompts/mention_chip.html).
 
 Attachables are separate from URL embed providers (above): they reference your own models, not external URLs.
 
@@ -515,7 +638,7 @@ PROSE_LEXXY_CONFIGURE = {
 
 ### Full example
 
-You can find a full example of a blog, built with Django Prose in the [`example`](./example/) directory.
+You can find a full example of a blog, built with Django Prose, in the [`example/`](example/) directory. It covers file uploads, YouTube embeds, and **`@` contributor mentions** via `AttachableMixin` — see [Extensible attachables](#extensible-attachables-mentions-inline-references) and the file table there for the canonical implementation paths.
 
 ## Upgrading to 3.0 (Trix → Lexxy)
 

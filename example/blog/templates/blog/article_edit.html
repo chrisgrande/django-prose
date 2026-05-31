@@ -1,0 +1,55 @@
+{% extends 'blog/base.html' %}
+
+{% block title %}Edit {{ article.title }} | Blog example | Django Prose{% endblock title %}
+{% block description %}Edit {{ article.title }}{% endblock description %}
+
+{% block extra_head %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'blog/mentions.css' %}">
+{% if article_form %}{{ article_form.media }}{% endif %}
+<script src="{% static 'blog/mentions.js' %}" defer></script>
+<style>
+  .edit-panel {
+    margin-top: 1rem;
+  }
+  .edit-panel h1 {
+    font-size: 1.1rem;
+    margin-top: 0;
+  }
+  .form-row {
+    margin-bottom: 1rem;
+  }
+  .form-row label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+  }
+</style>
+{% endblock extra_head %}
+
+{% block content %}
+{% load prose_demo %}
+<section class="edit-panel">
+  <h1>Edit your post</h1>
+  <p><a href="{% url 'blog_article' article.pk %}">← Back to article</a></p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-row">
+      {{ article_form.title.label_tag }}
+      {{ article_form.title }}
+    </div>
+    {# Demo: per-field editor customization — excerpt uses prose_field with #}
+    {# attachments=False (Lexxy attachments="false": no uploads, embeds, or @ prompts). #}
+    {# Body below keeps the default MentionRichTextEditor from forms.py. #}
+    <div class="form-row">
+      {{ article_form.excerpt.label_tag }}
+      {% prose_field article_form.excerpt attachments=False %}
+    </div>
+    <div class="form-row">
+      {{ article_form.body.label_tag }}
+      {{ article_form.body }}
+    </div>
+    <p><button type="submit">Save post</button></p>
+  </form>
+</section>
+{% endblock content %}
