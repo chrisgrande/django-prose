@@ -5,7 +5,7 @@
 {{ widget.editor_theme_css|safe }}
 </style>
 {% endif %}
-<div class="django-prose-editor-container django-prose-lexxy-host{% if not widget.prose_editable %} django-prose-lexxy-host--readonly{% endif %}">
+<div class="django-prose-editor-container django-prose-lexxy-host {{ widget.theme_host_class }}{% if not widget.prose_editable %} django-prose-lexxy-host--readonly{% endif %}">
   <lexxy-editor
     id="{{ widget.attrs.id }}"
     name="{{ widget.name }}"

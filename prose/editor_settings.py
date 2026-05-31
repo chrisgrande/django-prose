@@ -1,6 +1,7 @@
 """Editor chrome (CSS variables) and Lexxy configuration from Django settings."""
 
 import json
+import re
 
 from django.conf import settings
 from django.utils.html import json_script
@@ -148,6 +149,34 @@ def get_editor_theme(override=None):
     return {k: v for k, v in theme.items() if v not in (None, "")}
 
 
+def resolve_editor_field_theme(theme_spec):
+    """
+    Resolve a per-field theme for RichTextEditor / {% prose_field %}.
+
+    * ``None`` / ``""`` — no field-level override (use global PROSE_EDITOR_THEME).
+    * ``dict`` — merged over the global theme for that widget.
+    * ``str`` — key into ``PROSE_EDITOR_FIELD_THEMES`` in Django settings.
+    """
+    if not theme_spec:
+        return None
+    if isinstance(theme_spec, dict):
+        return theme_spec
+    if isinstance(theme_spec, str):
+        field_themes = getattr(settings, "PROSE_EDITOR_FIELD_THEMES", None) or {}
+        return field_themes.get(theme_spec)
+    return None
+
+
+def theme_host_class_for_id(editor_id):
+    """Stable host class so each editor's theme CSS scopes to one instance."""
+    slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", editor_id or "prose-editor").strip("-")
+    return f"django-prose-theme-host--{slug or 'prose-editor'}"
+
+
+def build_theme_host_selector(theme_host_class):
+    return f".django-prose-editor-container.{theme_host_class}"
+
+
 def build_editor_theme_css(theme=None, host_selector=".django-prose-lexxy-host"):
     """Return scoped CSS that overrides Lexxy variables for the editor wrapper."""
     theme = theme if theme is not None else get_editor_theme()
@@ -181,6 +210,13 @@ def build_editor_theme_css(theme=None, host_selector=".django-prose-lexxy-host")
         lines.append(f"{host_selector} lexxy-toolbar {{")
         for prop, val in toolbar_rules.items():
             lines.append(f"  {prop}: {val};")
+        if toolbar_bg:
+            lines.append(
+                "  border-start-start-radius: calc(var(--lexxy-radius) + var(--lexxy-toolbar-gap, 2px));"
+            )
+            lines.append(
+                "  border-start-end-radius: calc(var(--lexxy-radius) + var(--lexxy-toolbar-gap, 2px));"
+            )
         lines.append("}")
 
     return "\n".join(lines)

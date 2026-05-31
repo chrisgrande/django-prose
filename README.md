@@ -605,7 +605,46 @@ Common keys: `background` / `canvas`, `border`, `toolbar_background`, `icon` (to
 
 Any Lexxy variable can also be set with a `lexxy_*` key (e.g. `lexxy_z_popup`) or a raw `--lexxy-*` key.
 
-Per-widget overrides: `RichTextEditor(theme={"background": "#fff"})`.
+Per-widget overrides: `RichTextEditor(theme={"background": "#fff"})`. Each editor instance scopes its theme CSS to a unique host class (derived from the field `id`), so multiple editors on one page can use different themes without conflicting.
+
+**Per-field themes on one page**
+
+When a form has several `RichTextEditor` fields, pass a theme dict on the widget or register named themes in settings:
+
+```python
+# settings.py — global default
+PROSE_EDITOR_THEME = {
+    "background": "#faf8f5",
+    "toolbar_background": "#eef4f8",
+    "accent": "#1a5276",
+}
+
+# Optional named overrides merged over PROSE_EDITOR_THEME
+PROSE_EDITOR_FIELD_THEMES = {
+    "excerpt": {
+        "background": "#f4f8f4",
+        "toolbar_background": "#e4ede4",
+        "accent": "#2d6a2d",
+        "radius": "4px",
+    },
+}
+```
+
+**Python (form/widget):**
+
+```python
+RichTextEditor(theme={"background": "#f4f8f4", "toolbar_background": "#e4ede4"})
+```
+
+**Template (demo app):** the example blog uses `{% prose_field %}` to render a field with both Lexxy and theme overrides — see [`example/blog/templates/blog/article_edit.html`](example/blog/templates/blog/article_edit.html):
+
+```django
+{% load prose_demo %}
+{% prose_field article_form.excerpt attachments=False theme="excerpt" %}
+{{ article_form.body }}  {# global PROSE_EDITOR_THEME #}
+```
+
+The `theme="excerpt"` argument looks up `PROSE_EDITOR_FIELD_THEMES["excerpt"]`. The excerpt editor on the post edit page uses a sage-green palette; the body editor and comment forms keep the global warm slate theme.
 
 #### Lexxy behaviour (`PROSE_LEXXY_EDITOR`)
 
@@ -638,7 +677,7 @@ PROSE_LEXXY_CONFIGURE = {
 
 ### Full example
 
-You can find a full example of a blog, built with Django Prose, in the [`example/`](example/) directory. It covers file uploads, YouTube embeds, and **`@` contributor mentions** via `AttachableMixin` — see [Extensible attachables](#extensible-attachables-mentions-inline-references) and the file table there for the canonical implementation paths.
+You can find a full example of a blog, built with Django Prose, in the [`example/`](example/) directory. It covers file uploads, YouTube embeds, **`@` contributor mentions** via `AttachableMixin`, and **per-field editor themes** on the article edit page (sage excerpt vs global body/comment chrome) — see [Extensible attachables](#extensible-attachables-mentions-inline-references) and [Editor appearance](#editor-appearance-prose_editor_theme).
 
 ## Upgrading to 3.0 (Trix → Lexxy)
 

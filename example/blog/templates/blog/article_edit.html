@@ -38,12 +38,12 @@
       {{ article_form.title.label_tag }}
       {{ article_form.title }}
     </div>
-    {# Demo: per-field editor customization — excerpt uses prose_field with #}
-    {# attachments=False (Lexxy attachments="false": no uploads, embeds, or @ prompts). #}
-    {# Body below keeps the default MentionRichTextEditor from forms.py. #}
+    {# Demo: per-field editor customization via {% prose_field %}: #}
+    {# - attachments=False: no uploads, embeds, or @ prompts #}
+    {# - theme="excerpt": sage palette from PROSE_EDITOR_FIELD_THEMES (body uses global theme) #}
     <div class="form-row">
       {{ article_form.excerpt.label_tag }}
-      {% prose_field article_form.excerpt attachments=False %}
+      {% prose_field article_form.excerpt attachments=False theme="excerpt" %}
     </div>
     <div class="form-row">
       {{ article_form.body.label_tag }}

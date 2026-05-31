@@ -102,6 +102,10 @@ class MentionCommentTests(TestCase):
         self.assertNotIn("lexxy-prompt", excerpt_editor)
         self.assertNotIn('attachments="false"', body_editor)
         self.assertIn("lexxy-prompt", body_editor)
+        self.assertIn("django-prose-theme-host--id_excerpt", content)
+        self.assertIn("django-prose-theme-host--id_body", content)
+        self.assertIn("#f4f8f4", content)
+        self.assertIn("#faf8f5", content)
 
     def test_author_read_only_article_page_has_no_edit_form(self):
         client = Client()

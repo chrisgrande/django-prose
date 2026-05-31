@@ -9,9 +9,11 @@ from prose.editor_settings import (
     build_editor_theme_css,
     build_lexxy_configure_script,
     build_lexxy_editor_attributes,
+    build_theme_host_selector,
     get_editor_theme,
     get_lexxy_editor_options,
     prose_editable_from_options,
+    theme_host_class_for_id,
 )
 
 # Vendored under prose/static/prose/lexxy/ (see prose/static/prose/lexxy/VERSION and `yarn vendor:lexxy`).
@@ -56,8 +58,13 @@ class RichTextEditor(Textarea):
         context["widget"]["prose_editable"] = prose_editable_from_options(
             lexxy_options
         )
+        theme_host_class = theme_host_class_for_id(editor_id)
         theme = get_editor_theme(self._theme_override)
-        context["widget"]["editor_theme_css"] = build_editor_theme_css(theme)
+        context["widget"]["theme_host_class"] = theme_host_class
+        context["widget"]["editor_theme_css"] = build_editor_theme_css(
+            theme,
+            host_selector=build_theme_host_selector(theme_host_class),
+        )
         context["widget"]["lexxy_configure_script"] = build_lexxy_configure_script()
         context["widget"]["max_upload_size_mb"] = getattr(
             settings, "PROSE_ATTACHMENT_ALLOWED_FILE_SIZE", 5

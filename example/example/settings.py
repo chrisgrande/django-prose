@@ -136,3 +136,38 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 LOGIN_URL = "blog_login"
 LOGIN_REDIRECT_URL = "blog_index"
+
+# Demo-only Lexxy editor chrome (see README: PROSE_EDITOR_THEME).
+# Warm off-white canvas and slate-blue accents match the blog header links (#1a5276).
+# Applied automatically to every RichTextEditor (article edit, comments).
+PROSE_EDITOR_THEME = {
+    "background": "#faf8f5",
+    "toolbar_background": "#eef4f8",
+    "border": "#c5d4de",
+    "icon": "#2c5f7a",
+    "text": "#1a2e3b",
+    "text_subtle": "#5a7386",
+    "accent": "#1a5276",
+    "focus": "#1a5276",
+    "selected": "#e3f0f7",
+    "link": "#1a5276",
+    "radius": "6px",
+}
+
+# Per-field theme overrides for the demo (see article_edit.html {% prose_field %}).
+# Keys are passed as theme="…" on the template tag; values merge over PROSE_EDITOR_THEME.
+PROSE_EDITOR_FIELD_THEMES = {
+    "excerpt": {
+        "background": "#f4f8f4",
+        "toolbar_background": "#e4ede4",
+        "border": "#b8ccb8",
+        "icon": "#3d5c3d",
+        "text": "#1a2e1a",
+        "text_subtle": "#5a735a",
+        "accent": "#2d6a2d",
+        "focus": "#2d6a2d",
+        "selected": "#dceadc",
+        "link": "#2d6a2d",
+        "radius": "4px",
+    },
+}

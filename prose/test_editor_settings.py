@@ -4,10 +4,13 @@ from prose.editor_settings import (
     build_editor_theme_css,
     build_lexxy_configure_script,
     build_lexxy_editor_attributes,
+    build_theme_host_selector,
     camelize_lexxy_keys,
     format_lexxy_attribute_value,
     prose_editable_from_options,
+    resolve_editor_field_theme,
     theme_css_variable,
+    theme_host_class_for_id,
 )
 from prose.widgets import RichTextEditor
 
@@ -30,6 +33,7 @@ class EditorThemeTests(TestCase):
         self.assertIn("lexxy-toolbar", css)
         self.assertIn("color: #eeeeee", css)
         self.assertIn("background: #222222", css)
+        self.assertIn("border-start-start-radius:", css)
 
     def test_empty_theme_returns_empty_css(self):
         self.assertEqual(build_editor_theme_css({}), "")
@@ -45,6 +49,32 @@ class EditorThemeTests(TestCase):
     def test_theme_css_variable_map(self):
         self.assertEqual(
             theme_css_variable("toolbar_spacing"), "--lexxy-toolbar-spacing"
+        )
+
+    def test_theme_host_class_for_id(self):
+        self.assertEqual(
+            theme_host_class_for_id("id_excerpt"),
+            "django-prose-theme-host--id_excerpt",
+        )
+
+    def test_build_editor_theme_css_scoped_to_host_class(self):
+        host = build_theme_host_selector(theme_host_class_for_id("id_excerpt"))
+        css = build_editor_theme_css({"background": "#abcdef"}, host_selector=host)
+        self.assertIn(host, css)
+        self.assertIn("--lexxy-color-canvas: #abcdef", css)
+
+    def test_resolve_editor_field_theme(self):
+        with self.settings(
+            PROSE_EDITOR_FIELD_THEMES={"excerpt": {"background": "#111111"}}
+        ):
+            self.assertEqual(
+                resolve_editor_field_theme("excerpt"),
+                {"background": "#111111"},
+            )
+        self.assertIsNone(resolve_editor_field_theme(None))
+        self.assertEqual(
+            resolve_editor_field_theme({"accent": "#000"}),
+            {"accent": "#000"},
         )
 
 
@@ -101,8 +131,28 @@ class RichTextEditorThemeWidgetTests(TestCase):
         widget = RichTextEditor()
         context = widget.get_context("body", "", {"id": "id_body"})
         self.assertIn("--lexxy-color-canvas: #abcdef", context["widget"]["editor_theme_css"])
+        self.assertIn(
+            "django-prose-theme-host--id_body",
+            context["widget"]["theme_host_class"],
+        )
         self.assertEqual(context["widget"]["lexxy_attributes"]["markdown"], "false")
         self.assertTrue(context["widget"]["prose_editable"])
+
+    def test_widget_per_field_theme_scoped_separately(self):
+        widget_a = RichTextEditor(theme={"background": "#aaaaaa"})
+        widget_b = RichTextEditor(theme={"background": "#bbbbbb"})
+        ctx_a = widget_a.get_context("excerpt", "", {"id": "id_excerpt"})
+        ctx_b = widget_b.get_context("body", "", {"id": "id_body"})
+        self.assertIn(
+            ".django-prose-editor-container.django-prose-theme-host--id_excerpt",
+            ctx_a["widget"]["editor_theme_css"],
+        )
+        self.assertIn("--lexxy-color-canvas: #aaaaaa", ctx_a["widget"]["editor_theme_css"])
+        self.assertIn(
+            ".django-prose-editor-container.django-prose-theme-host--id_body",
+            ctx_b["widget"]["editor_theme_css"],
+        )
+        self.assertIn("--lexxy-color-canvas: #bbbbbb", ctx_b["widget"]["editor_theme_css"])
 
     def test_widget_lexxy_override(self):
         widget = RichTextEditor(lexxy={"editable": False})

@@ -38,6 +38,12 @@
   box-sizing: border-box;
   inline-size: 100%;
   max-inline-size: 100%;
+  /*
+   * Lexxy sets overflow: visible on lexxy-editor (lexxy-editor.css) so popovers
+   * can escape; that lets themed toolbar backgrounds spill past the rounded
+   * outer border. Clip children to the editor's border-radius instead.
+   */
+  overflow: clip;
 }
 
 /*
