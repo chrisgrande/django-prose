@@ -1,3 +1,4 @@
+{% load static %}
 {% if widget.lexxy_configure_script %}{{ widget.lexxy_configure_script }}{% endif %}
 {% if widget.editor_theme_css %}
 <style>
@@ -15,6 +16,7 @@
     data-caption-url="{% url 'prose_update_attachment_caption' %}"
     data-permitted-attachment-types="{{ widget.permitted_attachment_types_json }}"
     data-max-upload-size-mb="{{ widget.max_upload_size_mb }}"
+    data-lexxy-module-url="{% static 'prose/lexxy/lexxy.esm.js' %}"
     {% if not widget.prose_editable %}data-prose-editable="false"{% endif %}
     {% for attr_name, attr_value in widget.lexxy_attributes.items %}
     {{ attr_name }}="{{ attr_value }}"

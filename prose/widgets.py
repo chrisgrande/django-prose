@@ -14,16 +14,11 @@ from prose.editor_settings import (
     prose_editable_from_options,
 )
 
-LEXXY_VERSION = "0.9.14-beta"
-LEXXY_STYLESHEETS_BASE = (
-    f"https://unpkg.com/@37signals/lexxy@{LEXXY_VERSION}/dist/stylesheets"
-)
-# Load package sheets directly (lexxy.css only @imports siblings; admin CSS pipelines
-# can break relative import URLs). Order matches the package bundle.
+# Vendored under prose/static/prose/lexxy/ (see prose/static/prose/lexxy/VERSION and `yarn vendor:lexxy`).
 LEXXY_STYLESHEETS = (
-    f"{LEXXY_STYLESHEETS_BASE}/lexxy-variables.css",
-    f"{LEXXY_STYLESHEETS_BASE}/lexxy-content.css",
-    f"{LEXXY_STYLESHEETS_BASE}/lexxy-editor.css",
+    "prose/lexxy/stylesheets/lexxy-variables.css",
+    "prose/lexxy/stylesheets/lexxy-content.css",
+    "prose/lexxy/stylesheets/lexxy-editor.css",
 )
 
 

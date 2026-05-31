@@ -509,6 +509,8 @@ docker compose up
 
 If you are using Visual Studio code, just open this repository in a container using the [`Dev Containers: Open Folder in Container`](https://code.visualstudio.com/docs/devcontainers/containers#_quick-start-open-an-existing-folder-in-a-container).
 
+Lexxy’s editor JavaScript and CSS are vendored under `prose/static/prose/lexxy/` (no CDN requests for the editor). To refresh them after bumping `@37signals/lexxy` in `package.json`, run `yarn install` and `yarn vendor:lexxy`.
+
 ---
 
 <p align="center">

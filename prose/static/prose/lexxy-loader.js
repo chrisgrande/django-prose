@@ -1,5 +1,25 @@
 ;(function () {
-  var LEXXY_MODULE = "https://esm.sh/@37signals/lexxy@0.9.14-beta"
+  function resolveLexxyModuleUrl() {
+    var editor = document.querySelector(
+      "lexxy-editor.django-prose-lexxy[data-lexxy-module-url]"
+    )
+    if (editor) {
+      var fromEditor =
+        editor.getAttribute("data-lexxy-module-url") || editor.dataset.lexxyModuleUrl
+      if (fromEditor) return fromEditor
+    }
+
+    var scripts = document.getElementsByTagName("script")
+    for (var i = scripts.length - 1; i >= 0; i--) {
+      var src = scripts[i].src || ""
+      if (src.indexOf("lexxy-loader.js") !== -1) {
+        return src.replace(/lexxy-loader\.js(\?.*)?$/, "lexxy/lexxy.esm.js")
+      }
+    }
+    return ""
+  }
+
+  var LEXXY_MODULE = resolveLexxyModuleUrl()
   var YOUTUBE_CONTENT_TYPE = "application/vnd.prose.youtube"
   var FILE_ATTACHMENT_ICON_SVG =
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
@@ -1660,6 +1680,13 @@
     return raw.split(/[\s,]+/).filter(function (item) {
       return item && String(item).trim()
     })
+  }
+
+  if (!LEXXY_MODULE) {
+    if (typeof console !== "undefined" && console.error) {
+      console.error("django-prose: could not resolve vendored Lexxy module URL")
+    }
+    return
   }
 
   import(LEXXY_MODULE)

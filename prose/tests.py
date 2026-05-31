@@ -137,6 +137,12 @@ class WidgetPermittedTypesTests(TestCase):
         context = widget.get_context("body", "", {"id": "id_body"})
         self.assertEqual(context["widget"]["max_upload_size_mb"], 15)
 
+    def test_widget_uses_vendored_lexxy_stylesheets(self):
+        css = RichTextEditor().media._css["all"]
+        lexxy_css = [path for path in css if "prose/lexxy/stylesheets" in path]
+        self.assertEqual(len(lexxy_css), 3)
+        self.assertFalse(any(str(path).startswith("http") for path in css))
+
 
 class UploadAttachmentViewTests(TestCase):
     @classmethod
