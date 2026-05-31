@@ -24,6 +24,11 @@
     font-weight: bold;
     margin-bottom: 0.25rem;
   }
+  .field-note {
+    color: #5a7386;
+    font-size: 0.9rem;
+    margin: 0 0 0.5rem;
+  }
 </style>
 {% endblock extra_head %}
 
@@ -41,9 +46,14 @@
     {# Demo: per-field editor customization via {% prose_field %}: #}
     {# - attachments=False: no uploads, embeds, or @ prompts #}
     {# - theme="excerpt": sage palette from PROSE_EDITOR_FIELD_THEMES (body uses global theme) #}
+    {# - lexxy="excerpt": toolbar highlight palette + placeholder from PROSE_EDITOR_FIELD_LEXXY #}
     <div class="form-row">
       {{ article_form.excerpt.label_tag }}
-      {% prose_field article_form.excerpt attachments=False theme="excerpt" %}
+      <p class="field-note">
+        This field has been customized to show you the capabilities of the Lexxy
+        configuration and settings.
+      </p>
+      {% prose_field article_form.excerpt attachments=False theme="excerpt" lexxy="excerpt" %}
     </div>
     <div class="form-row">
       {{ article_form.body.label_tag }}

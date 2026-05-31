@@ -3,14 +3,14 @@
 from django import template
 from django.utils.safestring import mark_safe
 
-from prose.editor_settings import resolve_editor_field_theme
+from prose.editor_settings import resolve_editor_field_lexxy, resolve_editor_field_theme
 from prose.widgets import RichTextEditor
 
 register = template.Library()
 
 
 @register.simple_tag
-def prose_field(bound_field, attachments=True, theme=None):
+def prose_field(bound_field, attachments=True, theme=None, lexxy=None):
     """
     Render a bound RichTextEditor field with optional Lexxy and theme overrides.
 
@@ -18,6 +18,7 @@ def prose_field(bound_field, attachments=True, theme=None):
 
     * ``attachments=False`` — disable uploads, embeds, and @ prompts.
     * ``theme="excerpt"`` — look up ``PROSE_EDITOR_FIELD_THEMES["excerpt"]``.
+    * ``lexxy="excerpt"`` — look up ``PROSE_EDITOR_FIELD_LEXXY["excerpt"]``.
     """
     base = bound_field.field.widget
     if not isinstance(base, RichTextEditor):
@@ -27,11 +28,17 @@ def prose_field(bound_field, attachments=True, theme=None):
     theme_override = resolve_editor_field_theme(theme)
     if theme_override is None:
         theme_override = getattr(base, "_theme_override", None)
+    lexxy_override = resolve_editor_field_lexxy(lexxy)
 
-    if attachments and not base_lexxy and theme_override is None:
+    if (
+        attachments
+        and not base_lexxy
+        and theme_override is None
+        and lexxy_override is None
+    ):
         return bound_field.as_widget()
 
-    lexxy = {**base_lexxy, "attachments": bool(attachments)}
+    lexxy = {**base_lexxy, **(lexxy_override or {}), "attachments": bool(attachments)}
     widget = RichTextEditor(
         attrs=base.attrs,
         theme=theme_override,

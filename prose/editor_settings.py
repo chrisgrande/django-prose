@@ -167,6 +167,24 @@ def resolve_editor_field_theme(theme_spec):
     return None
 
 
+def resolve_editor_field_lexxy(lexxy_spec):
+    """
+    Resolve per-field Lexxy options for RichTextEditor / {% prose_field %}.
+
+    * ``None`` / ``""`` — no field-level override (use global PROSE_LEXXY_EDITOR).
+    * ``dict`` — merged over global Lexxy options for that widget.
+    * ``str`` — key into ``PROSE_EDITOR_FIELD_LEXXY`` in Django settings.
+    """
+    if not lexxy_spec:
+        return None
+    if isinstance(lexxy_spec, dict):
+        return lexxy_spec
+    if isinstance(lexxy_spec, str):
+        field_lexxy = getattr(settings, "PROSE_EDITOR_FIELD_LEXXY", None) or {}
+        return field_lexxy.get(lexxy_spec)
+    return None
+
+
 def theme_host_class_for_id(editor_id):
     """Stable host class so each editor's theme CSS scopes to one instance."""
     slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", editor_id or "prose-editor").strip("-")

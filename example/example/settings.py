@@ -171,3 +171,20 @@ PROSE_EDITOR_FIELD_THEMES = {
         "radius": "4px",
     },
 }
+
+# Per-field Lexxy overrides for the demo (see article_edit.html {% prose_field %}).
+# Keys are passed as lexxy="…" on the template tag; values merge over PROSE_LEXXY_EDITOR.
+PROSE_EDITOR_FIELD_LEXXY = {
+    "excerpt": {
+        "placeholder": "A brief summary for the article listing…",
+        "highlight": {
+            "buttons": {
+                "color": ["var(--highlight-3)", "var(--highlight-5)"],
+                "background-color": [
+                    "var(--highlight-bg-1)",
+                    "var(--highlight-bg-2)",
+                ],
+            },
+        },
+    },
+}

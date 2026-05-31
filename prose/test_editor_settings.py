@@ -8,6 +8,7 @@ from prose.editor_settings import (
     camelize_lexxy_keys,
     format_lexxy_attribute_value,
     prose_editable_from_options,
+    resolve_editor_field_lexxy,
     resolve_editor_field_theme,
     theme_css_variable,
     theme_host_class_for_id,
@@ -75,6 +76,22 @@ class EditorThemeTests(TestCase):
         self.assertEqual(
             resolve_editor_field_theme({"accent": "#000"}),
             {"accent": "#000"},
+        )
+
+    def test_resolve_editor_field_lexxy(self):
+        with self.settings(
+            PROSE_EDITOR_FIELD_LEXXY={
+                "excerpt": {"placeholder": "Summary…", "toolbar": {"upload": "file"}}
+            }
+        ):
+            self.assertEqual(
+                resolve_editor_field_lexxy("excerpt"),
+                {"placeholder": "Summary…", "toolbar": {"upload": "file"}},
+            )
+        self.assertIsNone(resolve_editor_field_lexxy(None))
+        self.assertEqual(
+            resolve_editor_field_lexxy({"markdown": False}),
+            {"markdown": False},
         )
 
 

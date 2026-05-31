@@ -95,10 +95,16 @@ class MentionCommentTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Edit your post")
         self.assertContains(response, 'name="title"', html=False)
+        self.assertContains(
+            response,
+            "This field has been customized to show you the capabilities of the Lexxy",
+        )
         content = response.content.decode()
         excerpt_editor = content.split('id="id_excerpt"', 1)[1].split("</lexxy-editor>", 1)[0]
         body_editor = content.split('id="id_body"', 1)[1].split("</lexxy-editor>", 1)[0]
         self.assertIn('attachments="false"', excerpt_editor)
+        self.assertIn('placeholder="A brief summary for the article listing…"', excerpt_editor)
+        self.assertIn("--highlight-3", excerpt_editor)
         self.assertNotIn("lexxy-prompt", excerpt_editor)
         self.assertNotIn('attachments="false"', body_editor)
         self.assertIn("lexxy-prompt", body_editor)
