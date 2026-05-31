@@ -177,7 +177,7 @@ class UploadAttachmentViewTests(TestCase):
         self.assertEqual(response.status_code, 400)
 
     @override_settings(
-        PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES=[
+        PROSE_PERMITTED_ATTACHMENT_TYPES=[
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         ]
     )
@@ -195,7 +195,7 @@ class UploadAttachmentViewTests(TestCase):
         self.assertEqual(data["content_type"], f.content_type)
 
     @override_settings(
-        PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES=[
+        PROSE_PERMITTED_ATTACHMENT_TYPES=[
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         ]
     )
@@ -212,9 +212,16 @@ class UploadAttachmentViewTests(TestCase):
         self.assertEqual(data["kind"], "file")
         self.assertIn("spreadsheetml.sheet", data["content_type"])
 
-    @override_settings(PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES=["image/png"])
+    @override_settings(PROSE_PERMITTED_ATTACHMENT_TYPES=["image/png"])
     def test_content_type_allowlist(self):
         f = SimpleUploadedFile("x.jpg", b"data", content_type="image/jpeg")
+        request = self.factory.post("/prose/attachment/", {"file": f})
+        response = self._upload_attachment(request)
+        self.assertEqual(response.status_code, 400)
+
+    @override_settings(PROSE_PERMITTED_ATTACHMENT_TYPES=["application/pdf"])
+    def test_upload_rejects_types_outside_permitted_list(self):
+        f = SimpleUploadedFile("photo.jpg", b"\xff\xd8\xff", content_type="image/jpeg")
         request = self.factory.post("/prose/attachment/", {"file": f})
         response = self._upload_attachment(request)
         self.assertEqual(response.status_code, 400)

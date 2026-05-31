@@ -104,12 +104,11 @@ LEXXY_OPTION_ATTRIBUTES = {
     "rich_text": "rich-text",
     "toolbar": "toolbar",
     "highlight": "highlight",
-    "permitted_attachment_types": "permitted-attachment-types",
     "preset": "preset",
     "placeholder": "placeholder",
 }
-# Attachment MIME allowlist for django-prose uploads is always set on
-# data-permitted-attachment-types via the widget (PROSE_PERMITTED_ATTACHMENT_TYPES).
+# Attachment MIME allowlist: PROSE_PERMITTED_ATTACHMENT_TYPES → data-permitted-attachment-types
+# on the widget (editor + upload endpoint both use get_permitted_attachment_types()).
 
 # Not Lexxy preset keys; handled by django-prose.
 EDITABLE_ATTRIBUTE = "data-prose-editable"

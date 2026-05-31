@@ -21,21 +21,6 @@ DEFAULT_PERMITTED_ATTACHMENT_TYPES = [
     YOUTUBE_CONTENT_TYPE,
 ]
 
-# Typical server-side allowlist when PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES is set.
-DEFAULT_ALLOWED_CONTENT_TYPES = [
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-    "application/pdf",
-    "application/msword",
-    "application/vnd.ms-excel",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-]
-
 EXTENSION_TO_MIME = {
     "pdf": "application/pdf",
     "doc": "application/msword",
@@ -58,7 +43,12 @@ MIME_LABELS = {
 
 
 def get_permitted_attachment_types():
-    """Types allowed in the Lexxy editor (user setting replaces defaults entirely)."""
+    """
+    MIME patterns allowed for attachments (editor + upload validation).
+
+    PROSE_PERMITTED_ATTACHMENT_TYPES replaces the built-in defaults entirely
+    when set; it is not merged. Wildcards such as image/* are supported.
+    """
     custom = getattr(settings, "PROSE_PERMITTED_ATTACHMENT_TYPES", None)
     if custom is not None:
         return [t for t in custom if t]
@@ -140,10 +130,8 @@ def normalize_upload_content_type(content_type, filename):
     return ct
 
 
-def content_type_allowed(content_type, filename="", allowed_list=None):
-    if allowed_list is None:
-        allowed_list = getattr(settings, "PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES", None)
-    if not allowed_list:
-        return True
+def content_type_allowed(content_type, filename="", permitted_types=None):
+    if permitted_types is None:
+        permitted_types = get_permitted_attachment_types()
     normalized = normalize_upload_content_type(content_type, filename)
-    return matches_permitted_type(normalized, filename, allowed_list)
+    return matches_permitted_type(normalized, filename, permitted_types)

@@ -158,23 +158,7 @@ Allowed file size can be overridden by setting `PROSE_ATTACHMENT_ALLOWED_FILE_SI
 PROSE_ATTACHMENT_ALLOWED_FILE_SIZE = 15
 ```
 
-To restrict uploads to specific MIME types, set `PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES` to a list of allowed `Content-Type` strings (lowercase matching). If unset, MIME types are not restricted (only file size and safe image handling: SVG is stored as a file link, not inline as `<img>`).
-
-```python
-PROSE_ATTACHMENT_ALLOWED_CONTENT_TYPES = [
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-]
-```
-
-PDF, Word, Excel, and PowerPoint files appear in the editor as a **pill** with a remove control, an editable title, and the original filename plus file type underneath.
-
-To control what the editor accepts (drag/drop and the upload button), set `PROSE_PERMITTED_ATTACHMENT_TYPES`. When set, this list **replaces** the built-in defaults (it is not merged). Wildcards such as `image/*` and `application/*` are supported.
+To control which file types the editor accepts (drag/drop and the upload button) and which uploads the server allows, set `PROSE_PERMITTED_ATTACHMENT_TYPES`. When set, this list **replaces** the built-in defaults (it is not merged). Wildcards such as `image/*` and `application/*` are supported. When unset, django-prose uses a built-in default list (images, videos, PDF, Office documents, and other `application/*` types).
 
 ```python
 PROSE_PERMITTED_ATTACHMENT_TYPES = [
@@ -184,6 +168,8 @@ PROSE_PERMITTED_ATTACHMENT_TYPES = [
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]
 ```
+
+PDF, Word, Excel, and PowerPoint files appear in the editor as a **pill** with a remove control, an editable title, and the original filename plus file type underneath. SVG is always stored as a file link, not inline as `<img>`.
 
 ### Embeds
 
@@ -450,7 +436,7 @@ Per-widget overrides: `RichTextEditor(theme={"background": "#fff"})`.
 
 #### Lexxy behaviour (`PROSE_LEXXY_EDITOR`)
 
-These options become attributes on `<lexxy-editor>` (Lexxy’s preset API): `attachments`, `markdown`, `multi_line` → `multi-line`, `rich_text` → `rich-text`, `toolbar` (JSON), `highlight` (JSON), `preset`, `placeholder`, `permitted_attachment_types`, and `single_line` → `single-line`.
+These options become attributes on `<lexxy-editor>` (Lexxy’s preset API): `attachments`, `markdown`, `multi_line` → `multi-line`, `rich_text` → `rich-text`, `toolbar` (JSON), `highlight` (JSON), `preset`, `placeholder`, and `single_line` → `single-line`. Use `PROSE_PERMITTED_ATTACHMENT_TYPES` (not `PROSE_LEXXY_EDITOR`) for attachment MIME allowlists.
 
 ```python
 PROSE_LEXXY_EDITOR = {
@@ -516,6 +502,7 @@ To get started run these commands in the provided order:
 
 ```console
 docker compose run --rm migrate
+docker compose run --rm test
 docker compose run --rm createsuperuser
 docker compose up
 ```

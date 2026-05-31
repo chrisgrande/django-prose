@@ -47,6 +47,12 @@ services:
     profiles:
       - tools
 
+  test:
+    <<: *base
+    command: python example/manage.py test prose
+    profiles:
+      - tools
+
 volumes:
   media:
   static:
