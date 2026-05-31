@@ -509,7 +509,45 @@ docker compose up
 
 If you are using Visual Studio code, just open this repository in a container using the [`Dev Containers: Open Folder in Container`](https://code.visualstudio.com/docs/devcontainers/containers#_quick-start-open-an-existing-folder-in-a-container).
 
-Lexxy’s editor JavaScript and CSS are vendored under `prose/static/prose/lexxy/` (no CDN requests for the editor). To refresh them after bumping `@37signals/lexxy` in `package.json`, run `yarn install` and `yarn vendor:lexxy`.
+### Updating Lexxy
+
+Lexxy’s editor JavaScript and CSS are vendored under `prose/static/prose/lexxy/` (served from Django static files — no CDN requests for the editor). The vendored release is recorded in `prose/static/prose/lexxy/VERSION`.
+
+To upgrade to a newer Lexxy release:
+
+1. Check the [Lexxy changelog](https://github.com/basecamp/lexxy/releases) for breaking changes.
+2. Set the new version in `package.json` under `devDependencies` → `@37signals/lexxy`.
+3. Rebuild the vendored assets:
+
+```console
+yarn install
+yarn vendor:lexxy
+```
+
+4. Review the git diff under `prose/static/prose/lexxy/` and in `yarn.lock`.
+5. If Lexxy changed editor APIs, events, or DOM structure, update `prose/static/prose/lexxy-loader.js` (and any related templates or CSS) to match.
+
+**Tests to run after a Lexxy upgrade**
+
+Run these before opening a pull request:
+
+```console
+# Python — full django-prose test suite (attachments, embeds, sanitization, widget)
+docker compose run --rm test
+
+# JavaScript/CSS — Prettier on prose/static/prose (excludes the minified bundle)
+yarn lint
+```
+
+Then smoke-test the example app in a browser (hard-refresh or restart `docker compose up` so static files reload):
+
+- Rich text formatting (bold, lists, tables, links)
+- File and image uploads (including oversize rejection)
+- Office/PDF file pills and captions
+- YouTube embed from the Link toolbar
+- Read-only editor mode if you rely on `editable: false`
+
+If you only changed vendored static files and `package.json` / `yarn.lock`, `docker compose run --rm test` and `yarn lint` are the required automated checks. Manual browser smoke tests catch Lexxy integration regressions that unit tests do not cover.
 
 ---
 
