@@ -184,7 +184,7 @@ class UploadAttachmentViewTests(TestCase):
         self.assertTrue(data["previewable"])
         self.assertEqual(Attachment.objects.count(), 1)
 
-    def test_svg_is_file_not_inline_image(self):
+    def test_svg_upload_is_image(self):
         f = SimpleUploadedFile(
             "icon.svg",
             b"<svg xmlns='http://www.w3.org/2000/svg'/>",
@@ -194,8 +194,8 @@ class UploadAttachmentViewTests(TestCase):
         response = self._upload_attachment(request)
         self.assertEqual(response.status_code, 201)
         data = json.loads(response.content.decode())
-        self.assertEqual(data["kind"], "file")
-        self.assertFalse(data["previewable"])
+        self.assertEqual(data["kind"], "image")
+        self.assertTrue(data["previewable"])
 
     def test_rejects_when_no_file(self):
         request = self.factory.post("/prose/attachment/", {})
@@ -865,8 +865,8 @@ class ContentTests(TestCase):
             self.assertNotIn("django-prose-file-pill", rendered)
             self.assertNotIn("prose-attachment", rendered)
             editor_html = attachment.render_attachment_html(context="editor")
-            self.assertIn("django-prose-file-pill", editor_html)
-            self.assertNotIn("<img", editor_html)
+            self.assertIn("<img", editor_html)
+            self.assertNotIn("django-prose-file-pill", editor_html)
         finally:
             shutil.rmtree(media_root, ignore_errors=True)
 

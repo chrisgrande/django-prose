@@ -55,13 +55,9 @@ class Attachment(models.Model):
         return f"{url}?content-disposition=attachment"
 
     @property
-    def is_svg(self):
-        return (self.content_type or "").lower() == "image/svg+xml"
-
-    @property
     def kind(self):
         ct = (self.content_type or "").lower()
-        if ct.startswith("image/") and not self.is_svg:
+        if ct.startswith("image/"):
             return "image"
         if ct == vendor_content_type("youtube"):
             return "embed"
@@ -118,7 +114,7 @@ class Attachment(models.Model):
             if context in ("editor", "paste"):
                 return "prose/attachments/youtube_editor.html"
             return "prose/attachments/youtube.html"
-        if self.kind == "image" or (context == "display" and self.is_svg):
+        if self.kind == "image":
             return "prose/attachments/image.html"
         if self.kind == "embed":
             return "prose/attachments/embed.html"

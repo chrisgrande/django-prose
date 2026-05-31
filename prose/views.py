@@ -48,10 +48,11 @@ def _download_url_for(media_url):
 def _classify_attachment(content_type):
     """
     Return (kind, previewable) where kind is 'image' or 'file'.
-    SVG is never treated as an inline image (XSS risk in <img src>).
+
+    SVG is rendered via linked <img src> (editor and display), not inline markup.
     """
     ct = (content_type or "").lower()
-    if ct.startswith("image/") and ct != "image/svg+xml":
+    if ct.startswith("image/"):
         return "image", True
     return "file", False
 
