@@ -1,6 +1,6 @@
 {
   "name": "django-prose",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Wonderful rich-text editing for Django",
   "main": "prose/static/prose/lexxy-loader.js",
   "repository": "https://github.com/withlogicco/django-prose.git",

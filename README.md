@@ -475,6 +475,118 @@ PROSE_LEXXY_CONFIGURE = {
 
 You can find a full example of a blog, built with Django Prose in the [`example`](./example/) directory.
 
+## Upgrading to 3.0 (Trix → Lexxy)
+
+This release replaces the [Trix](https://trix-editor.org/) editor (loaded from a CDN) with a vendored [Lexxy](https://github.com/basecamp/lexxy) editor and introduces database-backed attachments, embeds, and stricter upload validation. Existing HTML in your database is **not** rewritten automatically when you install the new version; most sites can upgrade with a small set of project changes and optional content re-saving.
+
+### What changed
+
+| Area | Before (Trix) | After (Lexxy) |
+| --- | --- | --- |
+| Editor | Trix from `unpkg.com` + `prose/editor.js` | Vendored Lexxy under `prose/static/prose/lexxy/` + `prose/lexxy-loader.js` |
+| Stored files | Saved to storage at `prose/YEAR/MONTH/DATE/UUID.ext`; **no** `Attachment` database row | Same storage path; each upload also creates a `prose.Attachment` row |
+| HTML references | Inline `<figure>` / `<img src="…">` (and similar) pointing at `MEDIA_URL` | `<prose-attachment sgid="…">` wrappers with signed IDs (Action Text–style) |
+| Public rendering | `{{ field \| safe }}` | Use `{{ field \| prose_attachments \| safe }}` so attachments and embeds resolve correctly |
+| Upload API | JSON `{"url": "…"}` | JSON with `sgid`, `url`, `download_url`, `filename`, `content_type`, `size`, `kind`, `previewable` |
+| Orphan files | Files left in storage if removed from content | Unlinked `Attachment` rows (and their files) are removed on save; use `cleanup_abandoned_attachments` for uploads never saved |
+| Dependencies | `bleach` only | `bleach` + `tinycss2` (for limited inline `color` / `background-color` styles) |
+| Sanitizer | Smaller tag/attribute allowlist | Tables, `hr`, `iframe` (embed prefixes only), `prose-attachment`, limited `style`, etc. |
+
+### Upgrade checklist
+
+1. **Upgrade the package** and install dependencies (`tinycss2` is new).
+2. **Run migrations** — migration `0003_attachment_richtextattachment` creates `Attachment` and `RichTextAttachment`:
+
+   ```console
+   python manage.py migrate prose
+   ```
+
+3. **Collect static files** — Trix assets are gone; Lexxy is bundled in the package:
+
+   ```console
+   python manage.py collectstatic
+   ```
+
+4. **Add middleware** (recommended) so the editor can report attachments removed before save:
+
+   ```python
+   MIDDLEWARE = [
+       # ...
+       "prose.middleware.ProseEditorMiddleware",
+       # ...
+   ]
+   ```
+
+5. **Update public templates** that render article/document body HTML:
+
+   ```django
+   {% load prose_attachments %}
+   {{ article.body.content|prose_attachments|safe }}
+   ```
+
+   The filter leaves plain HTML (including legacy inline images) unchanged when no `<prose-attachment>` tags are present.
+
+6. **Keep `form.media` on edit forms** — the widget still exposes CSS/JS via `RichTextEditor.Media`; you do not need to reference Trix or `prose/editor.js` yourself.
+
+7. **Remove project-specific Trix integration** — delete custom CSS targeting `trix-editor` / `trix-toolbar`, CDN fallbacks, and any calls to `window.djangoProse.initializeEditors()` (that API no longer exists; Lexxy bootstraps from `lexxy-loader.js` on `DOMContentLoaded` and `lexxy:initialize`).
+
+8. **Smoke-test** editing and viewing existing content (see [Post-upgrade testing](#post-upgrade-testing) below).
+
+### Existing attachment content (important)
+
+On the Trix-based release, uploads went to storage and the editor stored **direct URLs** in HTML (typically `<img src="/media/prose/…">` inside a `<figure class="attachment">`). There were **no** `Attachment` rows and **no** signed IDs.
+
+After upgrading:
+
+- **Reading old content on the site** — Inline images and links to `/media/prose/…` continue to work with `|prose_attachments|safe` (or plain `|safe`). No database backfill is required for display-only.
+- **Editing old content** — Opening a record in the Lexxy editor shows the previous HTML. Lexxy may normalize layout (lists, tables, spacing). Saving runs the new sanitizer and attachment sync.
+- **Attachment lifecycle** — Only references the new code understands (`<prose-attachment sgid="…">`, editor figures with `data-prose-sgid`, or legacy figures with class `django-prose-attachment` **and** a matching `Attachment` row) are tracked. **Legacy Trix inline images are not linked to `Attachment` rows** until you re-insert them or run a custom backfill.
+- **Removing an old inline image and saving** does **not** delete the file from storage (there was never an `Attachment` row). New uploads after upgrade are tracked and deleted when unlinked from content.
+- **Automatic conversion on save** — `canonicalize_legacy_attachments()` converts `<figure class="…django-prose-attachment…">` blocks to `<prose-attachment>` only when a matching `Attachment` exists (matched by media URL filename). Standard Trix figures **without** that class are left as-is.
+
+**Recommended paths for attachment-heavy sites**
+
+| Goal | Approach |
+| --- | --- |
+| Minimal change; keep old files as inline HTML | Upgrade + `|prose_attachments|safe`; accept that old files are not lifecycle-managed until re-uploaded |
+| Adopt signed attachments without a custom script | Edit and re-save important documents in the admin (re-insert files or paste content so Lexxy creates new `Attachment` rows) |
+| Full migration | Data migration: scan `RichTextField` / `AbstractDocument` HTML for `/prose/` media URLs, create `Attachment` rows, replace markup with `<prose-attachment sgid="…"></prose-attachment>` (mirror `Attachment.objects.create` + `sign_attachable` as in the test suite) |
+
+Storage paths are unchanged (`prose/%Y/%m/%d/`); you do **not** need to move files on disk.
+
+### New features you can adopt after upgrade
+
+- **YouTube embeds** — Link toolbar → **Embed**; requires embed URL routes (included in `prose.urls`) and `|prose_attachments` on display.
+- **Office/PDF file pills** — Non-image uploads render as titled file pills in the editor; SVG is stored as a file link, not inline `<img>` (XSS hardening).
+- **MIME allowlist** — Server and editor both honor `PROSE_PERMITTED_ATTACHMENT_TYPES` when set (replaces defaults entirely).
+- **Upload permission** — Optional `PROSE_UPLOAD_PERMISSION` dotted path for uploads and embeds.
+- **Theme / Lexxy options** — `PROSE_EDITOR_THEME`, `PROSE_LEXXY_EDITOR`, `PROSE_LEXXY_CONFIGURE` (see sections above).
+
+### Sanitizer and stored HTML
+
+Re-saving content applies the expanded allowlist (tables, `mark`, `u`, `del`, `iframe` for configured embed hosts, etc.) and may **strip** markup that was never allowed (e.g. `script`, arbitrary `iframe` hosts, disallowed attributes). Review a few representative documents after the first edit/save cycle.
+
+YouTube and other embeds are stored as empty `<prose-attachment>` wrappers; iframes are injected at display time via `|prose_attachments`, not stored inline (avoids duplicate embeds after Bleach).
+
+### Custom CSS and JavaScript
+
+- Replace selectors such as `.django-prose-editor-container trix-editor` with `.django-prose-lexxy-host` / `lexxy-editor.django-prose-lexxy` (see `prose/static/prose/editor.css`).
+- Do not load Trix from unpkg or ship `prose/editor.js`; it has been removed.
+- Dynamic forms that previously called `djangoProse.initializeEditors()` should re-render `form.media` or dispatch Lexxy’s initialization path; listen for `lexxy:initialize` on new `lexxy-editor` nodes if you inject editors client-side.
+
+### Post-upgrade testing
+
+1. Open existing rich-text records in the admin — confirm formatting and images still appear.
+2. Save without intentional edits — confirm public pages match expectations (`|prose_attachments|safe`).
+3. Upload a new image and a PDF — confirm `Attachment` rows in admin and correct public rendering.
+4. Remove a **new** upload before save, then save — confirm the file is removed (requires `ProseEditorMiddleware`).
+5. If you use embeds — exercise Link → **Embed** and public iframe output.
+6. Run `python manage.py cleanup_abandoned_attachments --dry-run` after editors have been in use (optional housekeeping).
+
+### Developing django-prose after the upgrade
+
+Package contributors upgrading vendored Lexxy versions should follow [Updating Lexxy](#updating-lexxy) below; that is separate from this application-level Trix → Lexxy migration.
+
 ## 🔒 A note on security
 
 As you can see in the examples above, what Django Prose does is provide you with a user friendly editor (powered by [Lexxy](https://github.com/basecamp/lexxy)) for your rich text content and then store it as HTML in your database. Since you will mark this HTML as safe in order to use it in your templates, it needs to be **sanitised**, before it gets stored in the database.
