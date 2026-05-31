@@ -842,6 +842,34 @@ class ContentTests(TestCase):
         finally:
             shutil.rmtree(media_root, ignore_errors=True)
 
+    def test_render_prose_attachments_svg_renders_as_image(self):
+        media_root = tempfile.mkdtemp(prefix="prose_test_")
+        try:
+            with self.settings(MEDIA_ROOT=media_root):
+                uploaded = SimpleUploadedFile(
+                    "icon.svg",
+                    b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+                    content_type="image/svg+xml",
+                )
+                attachment = Attachment.objects.create(
+                    file=uploaded,
+                    content_type="image/svg+xml",
+                    filename="icon.svg",
+                    byte_size=42,
+                )
+                sgid = sign_attachable(attachment)
+                html = f'<prose-attachment sgid="{sgid}"></prose-attachment>'
+                rendered = render_prose_attachments(html)
+            self.assertIn("<img", rendered)
+            self.assertIn(attachment.url, rendered)
+            self.assertNotIn("django-prose-file-pill", rendered)
+            self.assertNotIn("prose-attachment", rendered)
+            editor_html = attachment.render_attachment_html(context="editor")
+            self.assertIn("django-prose-file-pill", editor_html)
+            self.assertNotIn("<img", editor_html)
+        finally:
+            shutil.rmtree(media_root, ignore_errors=True)
+
     def test_sync_attachments_for_document(self):
         attachment = Attachment.objects.create(
             content_type="image/jpeg",
