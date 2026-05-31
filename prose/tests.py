@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import tempfile
 from html import escape
@@ -58,7 +59,10 @@ from prose.attachment_types import (
     mime_from_filename,
     normalize_upload_content_type,
 )
+from django.core.files.storage import default_storage
+
 from prose.content import (
+    _storage_path_from_media_url,
     _sync_youtube_caption_metadata,
     canonicalize_youtube_for_storage,
     cleanup_abandoned_attachments,
@@ -1114,6 +1118,139 @@ class RichTextFieldLexxySanitizerTests(TestCase):
             'style="color: rgb(255, 0, 0); background-color: rgb(255, 255, 0);"',
             sanitized,
         )
+
+
+class TrixLegacyAttachmentMigrationTests(TestCase):
+    def setUp(self):
+        self._media_root = tempfile.mkdtemp(prefix="prose_trix_test_")
+
+    def tearDown(self):
+        shutil.rmtree(self._media_root, ignore_errors=True)
+
+    def _save_prose_file(self, relative_path, data=b"\xff\xd8\xff"):
+        full_path = os.path.join(self._media_root, relative_path)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, "wb") as handle:
+            handle.write(data)
+        return relative_path
+
+    def _trix_image_figure(self, media_url, *, caption=""):
+        caption_html = (
+            f'<figcaption class="attachment__caption">'
+            f'<span class="attachment__name">{caption}</span></figcaption>'
+            if caption
+            else ""
+        )
+        return (
+            '<figure class="attachment attachment--preview">'
+            f'<img src="{media_url}" alt="{caption or "photo.jpg"}">'
+            f"{caption_html}</figure>"
+        )
+
+    def test_storage_path_from_media_url(self):
+        with self.settings(MEDIA_URL="/media/"):
+            self.assertEqual(
+                _storage_path_from_media_url("/media/prose/2024/06/01/abc.jpg"),
+                "prose/2024/06/01/abc.jpg",
+            )
+            self.assertEqual(
+                _storage_path_from_media_url(
+                    "/media/prose/2024/06/01/abc.jpg?content-disposition=attachment"
+                ),
+                "prose/2024/06/01/abc.jpg",
+            )
+            self.assertIsNone(_storage_path_from_media_url("/other/photo.jpg"))
+
+    def test_hydrate_creates_attachment_and_prose_attachment_for_trix_figure(self):
+        storage_path = self._save_prose_file("prose/2024/06/01/legacy.jpg")
+        media_url = f"/media/{storage_path}"
+        trix_html = f"<p>{self._trix_image_figure(media_url, caption='Legacy photo')}</p>"
+
+        with self.settings(MEDIA_ROOT=self._media_root, MEDIA_URL="/media/"):
+            self.assertEqual(Attachment.objects.count(), 0)
+            hydrated = hydrate_editor_attachments(trix_html)
+
+        self.assertEqual(Attachment.objects.count(), 1)
+        attachment = Attachment.objects.get()
+        self.assertEqual(attachment.file.name, storage_path)
+        self.assertEqual(attachment.filename, "Legacy photo")
+        self.assertEqual(attachment.content_type, "image/jpeg")
+        self.assertEqual((attachment.metadata or {}).get("migrated_from"), "trix")
+        self.assertIn("prose-attachment", hydrated)
+        self.assertIn(attachment.attachable_sgid, hydrated)
+        self.assertIn("attachment--preview", hydrated)
+
+    def test_sanitize_on_save_migrates_trix_figure_to_stored_prose_attachment(self):
+        storage_path = self._save_prose_file("prose/2024/06/01/save-me.jpg")
+        media_url = f"/media/{storage_path}"
+        trix_html = f"<p>{self._trix_image_figure(media_url)}</p>"
+
+        with self.settings(MEDIA_ROOT=self._media_root, MEDIA_URL="/media/"):
+            stored = sanitize_rich_text_html(trix_html)
+
+        self.assertEqual(Attachment.objects.count(), 1)
+        attachment = Attachment.objects.get()
+        self.assertIn("prose-attachment", stored)
+        self.assertIn(attachment.attachable_sgid, stored)
+        self.assertNotIn("<figure", stored)
+
+    def test_document_save_links_migrated_attachment(self):
+        storage_path = self._save_prose_file("prose/2024/06/01/linked.jpg")
+        media_url = f"/media/{storage_path}"
+        trix_html = f"<p>{self._trix_image_figure(media_url)}</p>"
+
+        with self.settings(MEDIA_ROOT=self._media_root, MEDIA_URL="/media/"):
+            self.assertTrue(default_storage.exists(storage_path))
+            doc = Document.objects.create(content=trix_html)
+            doc.refresh_from_db()
+
+        self.assertEqual(Attachment.objects.count(), 1)
+        attachment = Attachment.objects.get()
+        self.assertEqual(
+            RichTextAttachment.objects.filter(
+                object_id=doc.pk,
+                attachment=attachment,
+                field_name="content",
+            ).count(),
+            1,
+        )
+        self.assertIn("prose-attachment", doc.content)
+        self.assertIn(attachment.attachable_sgid, doc.content)
+
+    def test_hydrate_reuses_existing_attachment_for_same_file(self):
+        storage_path = self._save_prose_file("prose/2024/06/01/reuse.jpg")
+        media_url = f"/media/{storage_path}"
+
+        with self.settings(MEDIA_ROOT=self._media_root, MEDIA_URL="/media/"):
+            existing = Attachment.objects.create(
+                file=storage_path,
+                content_type="image/jpeg",
+                filename="reuse.jpg",
+                byte_size=3,
+            )
+            trix_html = f"<p>{self._trix_image_figure(media_url)}</p>"
+            hydrated = hydrate_editor_attachments(trix_html)
+
+        self.assertEqual(Attachment.objects.count(), 1)
+        self.assertIn(existing.attachable_sgid, hydrated)
+
+    def test_trix_file_link_figure_migrates(self):
+        storage_path = self._save_prose_file("prose/2024/06/01/report.pdf", b"%PDF-1.4")
+        media_url = f"/media/{storage_path}"
+        trix_html = (
+            "<p><figure class=\"attachment attachment--file\">"
+            f'<a href="{media_url}?content-disposition=attachment">report.pdf</a>'
+            "<figcaption><span>Quarterly report</span></figcaption>"
+            "</figure></p>"
+        )
+
+        with self.settings(MEDIA_ROOT=self._media_root, MEDIA_URL="/media/"):
+            hydrated = hydrate_editor_attachments(trix_html)
+
+        attachment = Attachment.objects.get()
+        self.assertEqual(attachment.filename, "Quarterly report")
+        self.assertEqual(attachment.kind, "file")
+        self.assertIn("django-prose-file-pill", hydrated)
 
 
 class RichTextFieldTests(TestCase):

@@ -1,9 +1,14 @@
+import mimetypes
+import os
 import re
 from html import escape, unescape
+from urllib.parse import unquote, urlparse
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.storage import default_storage
 
 from prose.attachables import resolve_attachable, vendor_content_type
+from prose.attachment_types import normalize_upload_content_type
 
 PROSE_ATTACHMENT_TAG = "prose-attachment"
 YOUTUBE_CONTENT_TYPE = vendor_content_type("youtube")
@@ -40,31 +45,199 @@ def extract_attachment_sgids(html):
     return list(dict.fromkeys(sgids))
 
 
-def _attachment_for_media_url(url):
-    from prose.models import Attachment
+def _storage_path_from_media_url(url):
+    """Map a public media URL to the storage path used by prose uploads (prose/Y/M/D/file)."""
+    from django.conf import settings
 
     if not url:
         return None
-    path = url.split("?")[0]
-    return (
-        Attachment.objects.filter(file__endswith=path.split("/")[-1])
+
+    cleaned = unquote((url or "").split("?")[0].strip())
+    if not cleaned:
+        return None
+
+    path = urlparse(cleaned).path if "://" in cleaned else cleaned
+    if not path.startswith("/"):
+        path = f"/{path}"
+
+    media_url = (settings.MEDIA_URL or "/media/").strip()
+    if media_url.startswith("http"):
+        base_path = urlparse(media_url).path.rstrip("/") + "/"
+    else:
+        base_path = media_url if media_url.endswith("/") else f"{media_url}/"
+        if not base_path.startswith("/"):
+            base_path = f"/{base_path}"
+
+    candidates = []
+    if path.startswith(base_path):
+        candidates.append(path[len(base_path) :].lstrip("/"))
+
+    stripped = path.lstrip("/")
+    if stripped.startswith("prose/"):
+        candidates.append(stripped)
+
+    for relative in candidates:
+        if relative.startswith("prose/"):
+            return relative
+    return None
+
+
+def _filename_from_trix_figure(figure_html, storage_path):
+    figcaption_match = re.search(
+        r"<figcaption\b[^>]*>.*?<span[^>]*>([^<]+)</span>",
+        figure_html,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if figcaption_match:
+        name = _clean_caption_text(figcaption_match.group(1))
+        if name:
+            return name[:255]
+
+    img_match = _IMG_SRC_PATTERN.search(figure_html)
+    if img_match:
+        alt_match = re.search(
+            r'\balt=(["\'])(.*?)\1',
+            img_match.group(0),
+            re.IGNORECASE | re.DOTALL,
+        )
+        if alt_match:
+            name = _clean_caption_text(alt_match.group(2))
+            if name:
+                return name[:255]
+
+    link_match = _LINK_HREF_PATTERN.search(figure_html)
+    if link_match:
+        anchor_match = re.search(
+            r"<a\b[^>]*>(.*?)</a>",
+            figure_html,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if anchor_match:
+            name = _clean_caption_text(anchor_match.group(1))
+            if name:
+                return name[:255]
+
+    return os.path.basename(storage_path)
+
+
+def _resolve_attachment_for_media_url(url, *, create=False, filename_hint=""):
+    from prose.models import Attachment
+
+    storage_path = _storage_path_from_media_url(url)
+    if not storage_path:
+        return None
+
+    attachment = Attachment.objects.filter(file=storage_path).first()
+    if attachment:
+        return attachment
+
+    basename = os.path.basename(storage_path)
+    attachment = (
+        Attachment.objects.filter(file__endswith=basename)
         .order_by("-created_at")
         .first()
     )
+    if attachment:
+        return attachment
+
+    if not create or not default_storage.exists(storage_path):
+        return None
+
+    display_name = (filename_hint or basename)[:255]
+    content_type = normalize_upload_content_type("", basename)
+    if not content_type or content_type == "application/octet-stream":
+        guessed, _ = mimetypes.guess_type(basename)
+        if guessed:
+            content_type = guessed
+    byte_size = default_storage.size(storage_path)
+    metadata = {
+        "original_filename": display_name,
+        "migrated_from": "trix",
+    }
+
+    return Attachment.objects.create(
+        file=storage_path,
+        content_type=content_type or "application/octet-stream",
+        filename=display_name,
+        byte_size=byte_size,
+        metadata=metadata,
+    )
+
+
+def _attachment_for_media_url(url):
+    return _resolve_attachment_for_media_url(url, create=False)
+
+
+def _get_or_create_attachment_for_media_url(url, *, filename_hint=""):
+    return _resolve_attachment_for_media_url(
+        url, create=True, filename_hint=filename_hint
+    )
+
+
+def _media_url_from_trix_figure(figure_html):
+    img_match = _IMG_SRC_PATTERN.search(figure_html)
+    if img_match:
+        return img_match.group(1)
+    link_match = _LINK_HREF_PATTERN.search(figure_html)
+    if link_match:
+        return link_match.group(1)
+    return None
+
+
+def _trix_figure_to_prose_attachment(figure_html, *, inner_context="display"):
+    if _SGID_DATA_PATTERN.search(figure_html):
+        return figure_html
+    if _is_youtube_embed_figure(figure_html):
+        return figure_html
+
+    media_url = _media_url_from_trix_figure(figure_html)
+    if not media_url:
+        return figure_html
+
+    attachment = _get_or_create_attachment_for_media_url(
+        media_url,
+        filename_hint=_filename_from_trix_figure(figure_html, _storage_path_from_media_url(media_url) or ""),
+    )
+    if not attachment:
+        return figure_html
+
+    return _prose_attachment_element(attachment, inner_context=inner_context)
+
+
+def migrate_trix_attachments_in_html(html, *, inner_context="display"):
+    """
+    Convert Trix-era attachment figures (inline media URLs, no Attachment rows)
+    into prose-attachment tags backed by database records.
+    """
+    if not html:
+        return html
+
+    def replace_trix_figure(match):
+        return _trix_figure_to_prose_attachment(
+            match.group(0),
+            inner_context=inner_context,
+        )
+
+    html = _LEXXY_ATTACHMENT_FIGURE_PATTERN.sub(replace_trix_figure, html)
+
+    if PROSE_ATTACHMENT_TAG in html:
+        return html
+
+    def replace_standalone_img(match):
+        full_tag = match.group(0)
+        url = match.group(1)
+        if not _storage_path_from_media_url(url):
+            return full_tag
+        attachment = _get_or_create_attachment_for_media_url(url)
+        if not attachment:
+            return full_tag
+        return _prose_attachment_element(attachment, inner_context=inner_context)
+
+    return _IMG_SRC_PATTERN.sub(replace_standalone_img, html)
 
 
 def _legacy_figure_to_prose_attachment(figure_html):
-    img_match = _IMG_SRC_PATTERN.search(figure_html)
-    if img_match:
-        attachment = _attachment_for_media_url(img_match.group(1))
-        if attachment:
-            return _prose_attachment_element(attachment)
-    link_match = _LINK_HREF_PATTERN.search(figure_html)
-    if link_match:
-        attachment = _attachment_for_media_url(link_match.group(1))
-        if attachment:
-            return _prose_attachment_element(attachment)
-    return figure_html
+    return _trix_figure_to_prose_attachment(figure_html, inner_context="display")
 
 
 def _prose_attachment_element(attachment, *, inner_context="display"):
@@ -74,10 +247,9 @@ def _prose_attachment_element(attachment, *, inner_context="display"):
         for key, value in attrs.items()
         if value is not None and value != ""
     )
-    # YouTube display storage uses an empty wrapper; display rendering expands it
-    # once via render_prose_attachments. Inner iframe HTML breaks bleach inside
-    # <p> tags and leaves duplicate embeds on the public page.
-    if _is_youtube_attachment(attachment) and inner_context == "display":
+    # Stored/display HTML uses an empty wrapper; render_prose_attachments expands it.
+    # Inline figures/iframes inside the tag are hoisted by Bleach and duplicate on save.
+    if inner_context == "display":
         return f"<{PROSE_ATTACHMENT_TAG} {attr_str}></{PROSE_ATTACHMENT_TAG}>"
     inner = attachment.render_attachment_html(context=inner_context)
     return f"<{PROSE_ATTACHMENT_TAG} {attr_str}>{inner}</{PROSE_ATTACHMENT_TAG}>"
@@ -382,7 +554,13 @@ def canonicalize_youtube_for_storage(html):
 
 
 def canonicalize_legacy_attachments(html):
-    if not html or "django-prose-attachment" not in html:
+    """Migrate Trix / legacy inline attachments to stored prose-attachment tags."""
+    if not html:
+        return html
+
+    html = migrate_trix_attachments_in_html(html, inner_context="display")
+
+    if "django-prose-attachment" not in html:
         return html
 
     def replace_figure(match):
@@ -423,14 +601,10 @@ def attachment_ids_from_html(html):
     if "django-prose-attachment" in html:
         for figure_match in _LEGACY_FIGURE_PATTERN.finditer(html):
             figure_html = figure_match.group(0)
-            attachment = None
-            img_match = _IMG_SRC_PATTERN.search(figure_html)
-            if img_match:
-                attachment = _attachment_for_media_url(img_match.group(1))
-            if not attachment:
-                link_match = _LINK_HREF_PATTERN.search(figure_html)
-                if link_match:
-                    attachment = _attachment_for_media_url(link_match.group(1))
+            media_url = _media_url_from_trix_figure(figure_html)
+            if not media_url:
+                continue
+            attachment = _attachment_for_media_url(media_url)
             if attachment:
                 ids.add(attachment.pk)
 
@@ -577,6 +751,8 @@ def hydrate_editor_attachments(html):
     if not html:
         return html
 
+    html = migrate_trix_attachments_in_html(html, inner_context="editor")
+
     if "data-prose-sgid" in html:
 
         def replace_editor_figure(match):
@@ -589,7 +765,7 @@ def hydrate_editor_attachments(html):
         html = _EDITOR_YOUTUBE_FIGURE.sub(replace_editor_figure, html)
 
     if PROSE_ATTACHMENT_TAG not in html:
-        return html
+        return _strip_duplicate_youtube_captions(html)
 
     pattern = re.compile(
         rf"<{PROSE_ATTACHMENT_TAG}\b([^>]*)>(.*?)</{PROSE_ATTACHMENT_TAG}>",

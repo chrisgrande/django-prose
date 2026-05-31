@@ -542,15 +542,14 @@ After upgrading:
 - **Editing old content** — Opening a record in the Lexxy editor shows the previous HTML. Lexxy may normalize layout (lists, tables, spacing). Saving runs the new sanitizer and attachment sync.
 - **Attachment lifecycle** — Only references the new code understands (`<prose-attachment sgid="…">`, editor figures with `data-prose-sgid`, or legacy figures with class `django-prose-attachment` **and** a matching `Attachment` row) are tracked. **Legacy Trix inline images are not linked to `Attachment` rows** until you re-insert them or run a custom backfill.
 - **Removing an old inline image and saving** does **not** delete the file from storage (there was never an `Attachment` row). New uploads after upgrade are tracked and deleted when unlinked from content.
-- **Automatic conversion on save** — `canonicalize_legacy_attachments()` converts `<figure class="…django-prose-attachment…">` blocks to `<prose-attachment>` only when a matching `Attachment` exists (matched by media URL filename). Standard Trix figures **without** that class are left as-is.
+- **Automatic migration (built in)** — When legacy Trix content is opened in the editor, django-prose creates `Attachment` rows for files already in storage (`prose/Y/M/D/…`) and replaces Trix `<figure class="attachment">` blocks with Lexxy-ready `<prose-attachment>` markup. **Saving** the document persists that format and links attachments via `RichTextAttachment`. No custom backfill script is required for typical Trix uploads.
 
-**Recommended paths for attachment-heavy sites**
+**Optional manual migration**
 
 | Goal | Approach |
 | --- | --- |
-| Minimal change; keep old files as inline HTML | Upgrade + `|prose_attachments|safe`; accept that old files are not lifecycle-managed until re-uploaded |
-| Adopt signed attachments without a custom script | Edit and re-save important documents in the admin (re-insert files or paste content so Lexxy creates new `Attachment` rows) |
-| Full migration | Data migration: scan `RichTextField` / `AbstractDocument` HTML for `/prose/` media URLs, create `Attachment` rows, replace markup with `<prose-attachment sgid="…"></prose-attachment>` (mirror `Attachment.objects.create` + `sign_attachable` as in the test suite) |
+| Minimal change | Upgrade + `|prose_attachments|safe`; open and save documents in the admin when you want attachment lifecycle tracking |
+| Bulk upgrade without opening each record | Data migration that scans HTML for `/prose/` media URLs and mirrors `migrate_trix_attachments_in_html()` / `sanitize_rich_text_html()` |
 
 Storage paths are unchanged (`prose/%Y/%m/%d/`); you do **not** need to move files on disk.
 
