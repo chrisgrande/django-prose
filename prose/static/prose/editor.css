@@ -4,6 +4,7 @@
  */
 .django-prose-editor-container {
   overflow-x: clip;
+  position: relative;
   /* Django admin lays out fields with .flex-container; Lexxy 0.9.14+ uses
      container-type: inline-size on lexxy-editor, so the editor shrinks to
      zero width unless this wrapper grows in the flex row. */
@@ -551,4 +552,45 @@ lexxy-link-dropdown .django-prose-link-actions--embed button[value="unlink"] {
   width: 100%;
   max-inline-size: 100%;
   box-sizing: border-box;
+}
+
+.django-prose-upload-error {
+  align-items: flex-start;
+  background: var(--lexxy-color-red, #dc2626);
+  border-radius: var(--lexxy-radius, 0.5rem);
+  box-shadow: var(--lexxy-shadow, 0 4px 12px rgba(0, 0, 0, 0.15));
+  box-sizing: border-box;
+  color: #fff;
+  display: flex;
+  gap: 0.75rem;
+  inset-block-end: 0.75rem;
+  inset-inline: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  position: absolute;
+  z-index: calc(var(--lexxy-z-popup, 1000) + 1);
+}
+
+.django-prose-upload-error__text {
+  flex: 1 1 auto;
+  font-size: 0.9em;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.django-prose-upload-error__dismiss {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font-size: 1.25rem;
+  line-height: 1;
+  margin: 0;
+  opacity: 0.85;
+  padding: 0;
+}
+
+.django-prose-upload-error__dismiss:hover {
+  opacity: 1;
 }

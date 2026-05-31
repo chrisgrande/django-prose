@@ -60,6 +60,9 @@ class RichTextEditor(Textarea):
         theme = get_editor_theme(self._theme_override)
         context["widget"]["editor_theme_css"] = build_editor_theme_css(theme)
         context["widget"]["lexxy_configure_script"] = build_lexxy_configure_script()
+        context["widget"]["max_upload_size_mb"] = getattr(
+            settings, "PROSE_ATTACHMENT_ALLOWED_FILE_SIZE", 5
+        )
         return context
 
     class Media:

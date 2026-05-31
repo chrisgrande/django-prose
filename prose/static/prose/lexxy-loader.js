@@ -150,6 +150,76 @@
     return (n / (1024 * 1024)).toFixed(1) + " MB"
   }
 
+  function editorContainer(editorElement) {
+    if (!editorElement || !editorElement.closest) return null
+    return editorElement.closest(".django-prose-editor-container")
+  }
+
+  function maxUploadSizeMbFromEditor(editorElement) {
+    if (!editorElement) return 5
+    var raw =
+      editorElement.getAttribute("data-max-upload-size-mb") ||
+      editorElement.dataset.maxUploadSizeMb ||
+      "5"
+    var mb = parseFloat(raw)
+    return mb > 0 ? mb : 5
+  }
+
+  function maxUploadBytesFromEditor(editorElement) {
+    return maxUploadSizeMbFromEditor(editorElement) * 1024 * 1024
+  }
+
+  function uploadSizeLimitMessage(editorElement, file) {
+    var limitMb = maxUploadSizeMbFromEditor(editorElement)
+    var name = (file && file.name) || "File"
+    return (
+      '"' +
+      name +
+      '" is too large (' +
+      formatSize(file && file.size) +
+      "). Files must be " +
+      limitMb +
+      " MB or smaller."
+    )
+  }
+
+  function fileExceedsUploadLimit(editorElement, file) {
+    if (!file) return false
+    return file.size > maxUploadBytesFromEditor(editorElement)
+  }
+
+  function showEditorUploadError(editorElement, message) {
+    var container = editorContainer(editorElement)
+    if (!container || !message) return
+
+    var existing = container.querySelector(".django-prose-upload-error")
+    if (existing) existing.remove()
+
+    var alert = document.createElement("div")
+    alert.className = "django-prose-upload-error"
+    alert.setAttribute("role", "alert")
+
+    var text = document.createElement("p")
+    text.className = "django-prose-upload-error__text"
+    text.textContent = message
+
+    var dismiss = document.createElement("button")
+    dismiss.type = "button"
+    dismiss.className = "django-prose-upload-error__dismiss"
+    dismiss.setAttribute("aria-label", "Dismiss")
+    dismiss.textContent = "\u00d7"
+
+    alert.appendChild(text)
+    alert.appendChild(dismiss)
+    container.appendChild(alert)
+
+    var hide = function () {
+      if (alert.parentNode) alert.parentNode.removeChild(alert)
+    }
+    dismiss.addEventListener("click", hide)
+    window.setTimeout(hide, 8000)
+  }
+
   function getCookie(name) {
     var value = "; " + document.cookie
     var parts = value.split("; " + name + "=")
@@ -213,7 +283,12 @@
           if (typeof onError === "function") onError(e)
         }
       } else if (typeof onError === "function") {
-        onError(new Error("Upload failed with status " + xhr.status))
+        var message = "Upload failed with status " + xhr.status
+        try {
+          var err = JSON.parse(xhr.responseText)
+          if (err && err.error) message = err.error
+        } catch (e2) {}
+        onError(new Error(message))
       }
     })
     xhr.addEventListener("error", function () {
@@ -692,6 +767,12 @@
   }
 
   function uploadFileToEditor(editorElement, host, file, pending) {
+    if (fileExceedsUploadLimit(editorElement, file)) {
+      if (pending && typeof pending.remove === "function") pending.remove()
+      showEditorUploadError(editorElement, uploadSizeLimitMessage(editorElement, file))
+      return
+    }
+
     uploadFile(
       host,
       file,
@@ -700,6 +781,10 @@
       },
       function (err) {
         if (pending && typeof pending.remove === "function") pending.remove()
+        showEditorUploadError(
+          editorElement,
+          (err && err.message) || "Could not upload this file."
+        )
         if (typeof console !== "undefined" && console.error) {
           console.error("django-prose: attachment upload failed", err)
         }
@@ -773,6 +858,12 @@
 
     if (!fileMatchesPermittedTypes(file, permittedTypesForEditor(editorElement))) {
       event.preventDefault()
+      return
+    }
+
+    if (fileExceedsUploadLimit(editorElement, file)) {
+      event.preventDefault()
+      showEditorUploadError(editorElement, uploadSizeLimitMessage(editorElement, file))
       return
     }
 

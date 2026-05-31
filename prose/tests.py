@@ -126,6 +126,17 @@ class WidgetPermittedTypesTests(TestCase):
         self.assertIn("application/pdf", permitted)
         self.assertIn("image/*", permitted)
 
+    def test_widget_exposes_max_upload_size_mb(self):
+        widget = RichTextEditor()
+        context = widget.get_context("body", "", {"id": "id_body"})
+        self.assertEqual(context["widget"]["max_upload_size_mb"], 5)
+
+    @override_settings(PROSE_ATTACHMENT_ALLOWED_FILE_SIZE=15)
+    def test_widget_respects_max_upload_size_setting(self):
+        widget = RichTextEditor()
+        context = widget.get_context("body", "", {"id": "id_body"})
+        self.assertEqual(context["widget"]["max_upload_size_mb"], 15)
+
 
 class UploadAttachmentViewTests(TestCase):
     @classmethod
@@ -225,6 +236,18 @@ class UploadAttachmentViewTests(TestCase):
         request = self.factory.post("/prose/attachment/", {"file": f})
         response = self._upload_attachment(request)
         self.assertEqual(response.status_code, 400)
+
+    def test_rejects_oversized_file(self):
+        f = SimpleUploadedFile(
+            "big.jpg",
+            b"x" * (6 * 1024 * 1024),
+            content_type="image/jpeg",
+        )
+        request = self.factory.post("/prose/attachment/", {"file": f})
+        response = self._upload_attachment(request)
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.content.decode())
+        self.assertIn("MB", data["error"])
 
     def test_method_not_allowed_for_get(self):
         request = self.factory.get("/prose/attachment/")

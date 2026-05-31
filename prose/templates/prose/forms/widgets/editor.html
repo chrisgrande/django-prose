@@ -14,6 +14,7 @@
     data-embed-check-url="{% url 'prose_embed_check' %}"
     data-caption-url="{% url 'prose_update_attachment_caption' %}"
     data-permitted-attachment-types="{{ widget.permitted_attachment_types_json }}"
+    data-max-upload-size-mb="{{ widget.max_upload_size_mb }}"
     {% if not widget.prose_editable %}data-prose-editable="false"{% endif %}
     {% for attr_name, attr_value in widget.lexxy_attributes.items %}
     {{ attr_name }}="{{ attr_value }}"
