@@ -9,14 +9,15 @@ Django Prose provides your Django applications with wonderful rich-text editing 
 - Python 3.8 or later
 - Django 3.2 or later
 - Bleach 4.0 or later
+- tinycss2 1.1 or later (installed automatically with django-prose; used for limited inline text colors in the sanitizer)
 
 ## Getting started
 
-To get started with Django Prose, all you need to do is follow **just four steps**.
+To get started with Django Prose, follow these steps in your Django project.
 
 1. **Install `django-prose`**
     
-    We use and suggest using Poetry, although Pipenv and plain pip will work seamlessly as well
+    We use and suggest using Poetry, although Pipenv and plain pip will work seamlessly as well. The package vendors the [Lexxy](https://github.com/basecamp/lexxy) editor (no CDN scripts required at runtime).
     
     ```console
     poetry add django-prose
@@ -24,13 +25,14 @@ To get started with Django Prose, all you need to do is follow **just four steps
 
 2. **Add to `INSTALLED_APPS`**
     
-    Add `prose` in your Django project's installed apps (example: [`example/example/settings.py`](https://github.com/withlogicco/django-prose/blob/9e24cc794eae6db48818dd15a483d106d6a99da0/example/example/settings.py#L46)):
+    Add `prose` in your Django project's installed apps (example: [`example/example/settings.py`](example/example/settings.py)):
     
     ```python
     INSTALLED_APPS = [
         # Django stock apps (e.g. 'django.contrib.admin')
+        "django.contrib.contenttypes",  # required for attachment linking
     
-        'prose',
+        "prose",
     
         # your application's apps
     ]
@@ -38,7 +40,7 @@ To get started with Django Prose, all you need to do is follow **just four steps
 
 3. **Run migrations**
 
-    This is required so you can use Django Prose's built-in Document model:
+    Creates the `Document`, `Attachment`, and `RichTextAttachment` models:
   
     ```console
     python manage.py migrate prose
@@ -46,15 +48,41 @@ To get started with Django Prose, all you need to do is follow **just four steps
 
 4. **Include URLs**
 
-    You need to edit the main `urls.py` file of your Django project and include `prose.urls`:
+    Required for file uploads, embeds, and caption updates. Edit your project's main `urls.py` (example: [`example/example/urls.py`](example/example/urls.py)):
     
     ```python
     urlpatterns = [
-        path('admin/', admin.site.urls),
+        path("admin/", admin.site.urls),
         # other urls ...
         path("prose/", include("prose.urls")),
     ]
     ```
+
+5. **Add middleware**
+
+    Recommended whenever you use the rich-text editor with attachments. It lets the editor report uploads removed before save so orphaned `Attachment` rows can be cleaned up (example: [`example/example/settings.py`](example/example/settings.py)):
+
+    ```python
+    MIDDLEWARE = [
+        "django.middleware.security.SecurityMiddleware",
+        "django.contrib.sessions.middleware.SessionMiddleware",
+        "prose.middleware.ProseEditorMiddleware",
+        "django.middleware.common.CommonMiddleware",
+        # ...
+    ]
+    ```
+
+6. **Collect static files (production)**
+
+    Lexxy's JavaScript and CSS ship inside the package under `prose/static/`. Run collectstatic before deploying:
+
+    ```console
+    python manage.py collectstatic
+    ```
+
+For **file uploads and embeds**, you also need `MEDIA_ROOT` and `MEDIA_URL` configured, CSRF available on editor forms (`{% csrf_token %}`), and `{{ form.media }}` on forms that use `RichTextField` — see [Attachments](#attachments) below.
+
+For **public pages**, render stored HTML with the `prose_attachments` template filter so `<prose-attachment>` tags and embeds resolve correctly — see [Rendering rich-text in templates](#rendering-rich-text-in-templates).
 
 Now, you are ready to go 🚀.
 
@@ -64,10 +92,19 @@ There are different ways to use Django prose according to your needs. We will ex
 
 ### Rendering rich-text in templates
 
-Rich text content essentially is HTML. For this reason it needs to be manually marked as [`safe`](https://docs.djangoproject.com/en/4.2/ref/templates/builtins/#safe), when rendered in Django templates. Example:
+Rich text content is stored as HTML. Mark it [`safe`](https://docs.djangoproject.com/en/4.2/ref/templates/builtins/#safe) in templates.
+
+If the content includes **uploads or embeds** (anything stored as `<prose-attachment>` tags), load the filter and resolve attachments before marking safe:
 
 ```django
-{{ document.content | safe}}
+{% load prose_attachments %}
+{{ document.content|prose_attachments|safe }}
+```
+
+Plain formatting-only HTML (no attachments) can use `|safe` alone. The filter leaves that markup unchanged when no attachment tags are present.
+
+```django
+{{ document.content|safe }}
 ```
 
 ### Small rich-text content
@@ -82,10 +119,10 @@ class Article(models.Model):
     excerpt = RichTextField()
 ```
 
-As mentioned above, you need to mark the article excerpt as `safe`, in order to render it:
+Mark the excerpt `safe` to render it (use `|prose_attachments|safe` if the field can contain uploads):
 
 ```django
-<div class="article-excerpt">{{ article.excerpt | safe}}</div>
+<div class="article-excerpt">{{ article.excerpt|safe }}</div>
 ```
 
 ### Large rich-text content
@@ -105,10 +142,11 @@ class Article(models.Model):
     body = models.OneToOneField(ArticleContent, on_delete=models.CASCADE)
 ```
 
-Similarly here as well, you need to mark the article's body as `safe`, in order to render it:
+For article bodies with attachments or embeds, use `prose_attachments`:
 
 ```django
-<div class="article-body">{{ article.body.content | safe}}</div>
+{% load prose_attachments %}
+<div class="article-body">{{ article.body.content|prose_attachments|safe }}</div>
 ```
 
 ### Forms with rich-text editing
@@ -130,12 +168,16 @@ The same is true also, if you are rendering the forms field manually.
 
 ### Attachments
 
-Django Prose can also handle uploading attachments with drag and drop. To set this up, first you need to:
+Django Prose handles file uploads (drag and drop or toolbar) and URL embeds through the Lexxy editor. In addition to the [getting started](#getting-started) steps above, confirm:
 
-- [x] Set up the `MEDIA_ROOT` and `MEDIA_URL` of your Django project (example in [`example/example/settings.py`](https://github.com/withlogicco/django-prose/blob/9e24cc794eae6db48818dd15a483d106d6a99da0/example/example/settings.py#L130-L131)))
-- [x] Include the Django Prose URLs (example in [`example/example/urls.py`](https://github.com/withlogicco/django-prose/blob/9e24cc794eae6db48818dd15a483d106d6a99da0/example/example/urls.py#L13-L14))
-- [x] Run migrations so the `Attachment` model is created (`python manage.py migrate prose`)
-- [x] (Optional) Set up a different Django storage to store your files (e.g. S3)
+- [x] `MEDIA_ROOT` and `MEDIA_URL` are configured (example: [`example/example/settings.py`](example/example/settings.py))
+- [x] `path("prose/", include("prose.urls"))` is in your root URLconf
+- [x] `python manage.py migrate prose` has been run
+- [x] `prose.middleware.ProseEditorMiddleware` is in `MIDDLEWARE`
+- [x] Editor forms include `{% csrf_token %}` and `{{ form.media }}`
+- [x] Public templates use `|prose_attachments|safe` (see [Rendering rich-text in templates](#rendering-rich-text-in-templates))
+- [x] (Production) `python manage.py collectstatic` has been run
+- [x] (Optional) A custom storage backend for files (e.g. S3)
 
 - Attachments are stored in the database (`prose.Attachment`) and referenced in HTML with `<prose-attachment sgid="...">` tags (compatible with [Lexxy](https://basecamp.github.io/lexxy/) and [Action Text](https://guides.rubyonrails.org/action_text_overview.html)-style signed IDs).
 - Files use a path structure of `prose/YEAR/MONTH/DATE/UUID.EXT` in your storage backend.
