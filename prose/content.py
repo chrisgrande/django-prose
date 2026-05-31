@@ -449,6 +449,31 @@ def delete_unlinked_attachments(attachment_ids):
         Attachment.objects.filter(pk=attachment_id).delete()
 
 
+def abandoned_attachments_queryset(*, minimum_age=None):
+    """
+    Attachments with no RichTextAttachment links (uploaded but never saved, or
+    removed from content without a successful sync).
+    """
+    from django.db.models import Exists, OuterRef
+    from django.utils import timezone
+
+    from prose.models import Attachment, RichTextAttachment
+
+    links = RichTextAttachment.objects.filter(attachment_id=OuterRef("pk"))
+    qs = Attachment.objects.annotate(_has_link=Exists(links)).filter(_has_link=False)
+    if minimum_age is not None and minimum_age.total_seconds() > 0:
+        qs = qs.filter(created_at__lte=timezone.now() - minimum_age)
+    return qs.order_by("created_at")
+
+
+def cleanup_abandoned_attachments(*, minimum_age=None, dry_run=False):
+    """Delete abandoned attachments. Returns the targeted Attachment rows."""
+    attachments = list(abandoned_attachments_queryset(minimum_age=minimum_age))
+    if not dry_run and attachments:
+        delete_unlinked_attachments([attachment.pk for attachment in attachments])
+    return attachments
+
+
 def cleanup_attachments_for_instance(instance, field_name=None):
     """
     Delete attachments linked to this object. Attachments still referenced

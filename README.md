@@ -171,6 +171,14 @@ PROSE_PERMITTED_ATTACHMENT_TYPES = [
 
 PDF, Word, Excel, and PowerPoint files appear in the editor as a **pill** with a remove control, an editable title, and the original filename plus file type underneath. SVG is always stored as a file link, not inline as `<img>`.
 
+Saving a model with a `RichTextField` normally syncs attachment links and deletes orphans. To purge unlinked `Attachment` rows that accumulated (for example from abandoned uploads), run:
+
+```console
+python manage.py cleanup_abandoned_attachments
+```
+
+Use `--dry-run` to preview and `--minimum-age-hours 0` to include recently created unlinked attachments. By default only attachments older than 24 hours are removed.
+
 ### Embeds
 
 URL-based embeds (YouTube is built in) are stored as `Attachment` rows and referenced in HTML with `<prose-attachment sgid="…">`, the same as uploaded files. In the editor, paste only creates a normal link; embedding is always explicit from the **Link** toolbar popover — enter a URL and click **Embed** when the server recognizes it.

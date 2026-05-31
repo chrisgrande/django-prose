@@ -39,8 +39,10 @@ def _ensure_django():
 _ensure_django()
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.db import models
 from django.test import RequestFactory, TestCase, override_settings
+from django.utils import timezone
 
 from prose.attachables import (
     AttachableMixin,
@@ -59,6 +61,7 @@ from prose.attachment_types import (
 from prose.content import (
     _sync_youtube_caption_metadata,
     canonicalize_youtube_for_storage,
+    cleanup_abandoned_attachments,
     cleanup_attachments_for_instance,
     extract_attachment_sgids,
     hydrate_editor_attachments,
@@ -1126,3 +1129,85 @@ class RichTextFieldTests(TestCase):
         sanitized = field.pre_save(article, add=True)
         self.assertNotIn("<script>", sanitized)
         self.assertIn("<p>ok</p>", sanitized)
+
+
+class CleanupAbandonedAttachmentsTests(TestCase):
+    def test_deletes_unlinked_attachments_older_than_minimum_age(self):
+        from datetime import timedelta
+
+        abandoned = Attachment.objects.create(
+            content_type="image/png",
+            filename="orphan.png",
+            byte_size=1,
+        )
+        Attachment.objects.filter(pk=abandoned.pk).update(
+            created_at=timezone.now() - timedelta(hours=25)
+        )
+
+        call_command("cleanup_abandoned_attachments", minimum_age_hours=24)
+
+        self.assertFalse(Attachment.objects.filter(pk=abandoned.pk).exists())
+
+    def test_keeps_unlinked_recent_attachments_by_default(self):
+        from datetime import timedelta
+
+        recent = Attachment.objects.create(
+            content_type="image/png",
+            filename="recent.png",
+            byte_size=1,
+        )
+        Attachment.objects.filter(pk=recent.pk).update(
+            created_at=timezone.now() - timedelta(hours=1)
+        )
+
+        call_command("cleanup_abandoned_attachments", minimum_age_hours=24)
+
+        self.assertTrue(Attachment.objects.filter(pk=recent.pk).exists())
+
+    def test_keeps_attachments_linked_to_rich_text(self):
+        from datetime import timedelta
+
+        attachment = Attachment.objects.create(
+            content_type="image/png",
+            filename="linked.png",
+            byte_size=1,
+        )
+        Attachment.objects.filter(pk=attachment.pk).update(
+            created_at=timezone.now() - timedelta(hours=25)
+        )
+        sgid = sign_attachable(attachment)
+        doc = Document.objects.create(
+            content=f'<p><prose-attachment sgid="{sgid}"></prose-attachment></p>'
+        )
+        sync_attachments_for_instance(doc, "content", doc.content)
+
+        call_command("cleanup_abandoned_attachments", minimum_age_hours=0)
+
+        self.assertTrue(Attachment.objects.filter(pk=attachment.pk).exists())
+        self.assertTrue(
+            RichTextAttachment.objects.filter(attachment_id=attachment.pk).exists()
+        )
+
+    def test_dry_run_does_not_delete(self):
+        from datetime import timedelta
+
+        abandoned = Attachment.objects.create(
+            content_type="image/png",
+            filename="orphan.png",
+            byte_size=1,
+        )
+        Attachment.objects.filter(pk=abandoned.pk).update(
+            created_at=timezone.now() - timedelta(hours=25)
+        )
+
+        call_command(
+            "cleanup_abandoned_attachments",
+            dry_run=True,
+            minimum_age_hours=0,
+        )
+
+        self.assertTrue(Attachment.objects.filter(pk=abandoned.pk).exists())
+        self.assertEqual(
+            len(cleanup_abandoned_attachments(minimum_age=timedelta(hours=0), dry_run=True)),
+            1,
+        )
