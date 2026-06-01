@@ -11,18 +11,42 @@ on:
       - main
 
 jobs:
-  test-python:
-    name: Test (Python)
+  lint-python:
+    name: Lint (Python)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
     - run: pipx install poetry==1.8.3
     - uses: actions/setup-python@v6
       with:
-        python-version: '3.12'
+        python-version: '3.14'
         cache: poetry
     - run: poetry install
     - run: poetry run black --check .
+
+  test-python:
+    name: Test (Django ${{ matrix.django-version }}, Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - django-version: "5.2.14"
+            python-version: "3.13"
+          - django-version: "6.0.5"
+            python-version: "3.12"
+          - django-version: "6.0.5"
+            python-version: "3.14"
+    steps:
+    - uses: actions/checkout@v6
+    - run: pipx install poetry==1.8.3
+    - uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: poetry
+    - run: poetry install
+    - run: poetry run pip install "django==${{ matrix.django-version }}"
+    - run: poetry run python example/manage.py test prose
 
   test-js:
     name: Test (JavaScript)
@@ -39,7 +63,7 @@ jobs:
   dependabot:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
-    needs: [test-python, test-js]
+    needs: [lint-python, test-python, test-js]
     env:
       PR_URL: ${{github.event.pull_request.html_url}}
       GH_TOKEN: ${{secrets.GITHUB_TOKEN}}

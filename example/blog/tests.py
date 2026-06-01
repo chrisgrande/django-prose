@@ -254,3 +254,37 @@ class MentionCommentTests(TestCase):
         self.article.body.refresh_from_db()
         self.assertEqual(self.article.title, "Updated title")
         self.assertIn("Updated body", self.article.body.content)
+
+    def test_create_post_requires_login(self):
+        response = Client().get("/articles/new/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login/", response.url)
+
+    def test_author_can_create_post(self):
+        client = Client()
+        client.login(username="writer", password="pass")
+        response = client.post(
+            "/articles/new/",
+            data={
+                "title": "Fresh post",
+                "excerpt": "<p>Short summary</p>",
+                "body": "<p>Full story</p>",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        article = Article.objects.get(title="Fresh post")
+        self.assertEqual(article.author, self.author)
+        self.assertIn("Short summary", article.excerpt)
+        self.assertIn("Full story", article.body.content)
+
+    def test_author_sees_new_post_form(self):
+        client = Client()
+        client.login(username="writer", password="pass")
+        response = client.get("/articles/new/")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "New post")
+        self.assertContains(response, "Publish post")
+        self.assertContains(response, 'name="title"', html=False)
+        content = response.content.decode()
+        self.assertIn('attachments="false"', content.split('id="id_excerpt"', 1)[1].split("</lexxy-editor>", 1)[0])
+        self.assertIn("lexxy-prompt", content.split('id="id_body"', 1)[1].split("</lexxy-editor>", 1)[0])

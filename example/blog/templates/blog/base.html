@@ -47,7 +47,8 @@
     <a href="{% url 'blog_index' %}"><strong>Django Prose blog</strong></a>
     <nav>
       {% if user.is_authenticated %}
-        Signed in as <strong>{{ user.username }}</strong>
+        <a href="{% url 'blog_article_create' %}">New post</a>
+        · Signed in as <strong>{{ user.username }}</strong>
         · <a href="{% url 'blog_logout' %}">Sign out</a>
       {% else %}
         <a href="{% url 'blog_login' %}">Sign in</a>

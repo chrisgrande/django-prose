@@ -4,7 +4,11 @@
 
 {% block content %}
 <h1>Sign in</h1>
-<p>Use your Django admin account or any user created in the admin.</p>
+<p>
+  Demo login: username <strong>demo</strong>, password <strong>demo</strong>
+  (created automatically when you start the app with Docker).
+</p>
+<p>Use your Django admin account or any other user created in the admin.</p>
 <form method="post">
   {% csrf_token %}
   {{ form.as_p }}

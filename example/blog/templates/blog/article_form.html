@@ -1,7 +1,7 @@
 {% extends 'blog/base.html' %}
 
-{% block title %}Edit {{ article.title }} | Blog example | Django Prose{% endblock title %}
-{% block description %}Edit {{ article.title }}{% endblock description %}
+{% block title %}{{ page_title }} | Blog example | Django Prose{% endblock title %}
+{% block description %}{{ page_title }}{% endblock description %}
 
 {% block extra_head %}
 {% load static %}
@@ -35,8 +35,8 @@
 {% block content %}
 {% load prose_demo %}
 <section class="edit-panel">
-  <h1>Edit your post</h1>
-  <p><a href="{% url 'blog_article' article.pk %}">← Back to article</a></p>
+  <h1>{{ page_title }}</h1>
+  <p><a href="{% if back_url_kwargs %}{% url back_url_name back_url_kwargs.pk %}{% else %}{% url back_url_name %}{% endif %}">{{ back_label }}</a></p>
   <form method="post">
     {% csrf_token %}
     <div class="form-row">
@@ -59,7 +59,7 @@
       {{ article_form.body.label_tag }}
       {{ article_form.body }}
     </div>
-    <p><button type="submit">Save post</button></p>
+    <p><button type="submit">{{ submit_label }}</button></p>
   </form>
 </section>
 {% endblock content %}

@@ -5,16 +5,12 @@
 
 {% block extra_head %}
 {% load static %}
+<link rel="stylesheet" href="{% static 'blog/content.css' %}">
 <link rel="stylesheet" href="{% static 'blog/mentions.css' %}">
 {% if comment_form %}{{ comment_form.media }}{% endif %}
 {% for row in comment_rows %}{% if row.edit_form %}{{ row.edit_form.media }}{% endif %}{% endfor %}
 <script src="{% static 'blog/mentions.js' %}" defer></script>
 <style>
-  .article-body,
-  .comment-body {
-    margin: 1rem 0;
-    line-height: 1.5;
-  }
   .comment-list {
     list-style: none;
     padding: 0;

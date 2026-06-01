@@ -5,7 +5,7 @@ from django.http import HttpResponseBase
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from blog.forms import ArticleEditForm, CommentForm
+from blog.forms import ArticleForm, CommentForm
 from blog.models import Article, Comment
 
 
@@ -107,6 +107,36 @@ def blog_article(request, pk):
     return render(request, "blog/article.html", context)
 
 
+def blog_article_create(request):
+    if not request.user.is_authenticated:
+        messages.error(request, "Sign in to create a post.")
+        login_url = reverse("blog_login")
+        return redirect(f"{login_url}?next={request.path}")
+
+    if request.method == "POST":
+        article_form = ArticleForm(request.POST)
+        if article_form.is_valid():
+            article = article_form.save(commit=False)
+            article.author = request.user
+            article.save()
+            messages.success(request, "Post published.")
+            return redirect("blog_article", pk=article.pk)
+    else:
+        article_form = ArticleForm()
+
+    return render(
+        request,
+        "blog/article_form.html",
+        {
+            "article_form": article_form,
+            "page_title": "New post",
+            "submit_label": "Publish post",
+            "back_url_name": "blog_index",
+            "back_label": "← Back to articles",
+        },
+    )
+
+
 def blog_article_edit(request, pk):
     article = get_object_or_404(
         Article.objects.select_related("author", "body"),
@@ -124,19 +154,24 @@ def blog_article_edit(request, pk):
 
     article_form = None
     if request.method == "POST":
-        article_form = ArticleEditForm(request.POST, instance=article)
+        article_form = ArticleForm(request.POST, instance=article)
         if article_form.is_valid():
             article_form.save()
             messages.success(request, "Post updated.")
             return redirect("blog_article", pk=article.pk)
     else:
-        article_form = ArticleEditForm(instance=article)
+        article_form = ArticleForm(instance=article)
 
     return render(
         request,
-        "blog/article_edit.html",
+        "blog/article_form.html",
         {
             "article": article,
             "article_form": article_form,
+            "page_title": "Edit your post",
+            "submit_label": "Save post",
+            "back_url_name": "blog_article",
+            "back_url_kwargs": {"pk": article.pk},
+            "back_label": "← Back to article",
         },
     )

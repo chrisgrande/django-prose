@@ -821,14 +821,17 @@ If you are using Django Prose in your application too, feel free to open a [Pull
 
 If you plan to contribute code to Django Prose, this section is for you. All development tooling for Django Prose has been set up with Docker and Development Containers.
 
+The example app and Docker environment use **Django 6.0.5** on **Python 3.14**. CI also tests against **Django 5.2.14** (LTS) on Python 3.13, and **Django 6.0.5** on Python 3.12 and 3.14.
+
 To get started run these commands in the provided order:
 
 ```console
 docker compose run --rm migrate
 docker compose run --rm test
-docker compose run --rm createsuperuser
 docker compose up
 ```
+
+`docker compose up` runs migrations and creates a demo superuser if one does not exist yet (`demo` / `demo`). Sign in at http://localhost:8000/admin/ or http://localhost:8000/login/.
 
 If you are using Visual Studio code, just open this repository in a container using the [`Dev Containers: Open Folder in Container`](https://code.visualstudio.com/docs/devcontainers/containers#_quick-start-open-an-existing-folder-in-a-container).
 
