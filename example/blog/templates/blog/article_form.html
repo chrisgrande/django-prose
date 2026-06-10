@@ -1,0 +1,65 @@
+{% extends 'blog/base.html' %}
+
+{% block title %}{{ page_title }} | Blog example | Django Prose{% endblock title %}
+{% block description %}{{ page_title }}{% endblock description %}
+
+{% block extra_head %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'blog/mentions.css' %}">
+{% if article_form %}{{ article_form.media }}{% endif %}
+<script src="{% static 'blog/mentions.js' %}" defer></script>
+<style>
+  .edit-panel {
+    margin-top: 1rem;
+  }
+  .edit-panel h1 {
+    font-size: 1.1rem;
+    margin-top: 0;
+  }
+  .form-row {
+    margin-bottom: 1rem;
+  }
+  .form-row label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.25rem;
+  }
+  .field-note {
+    color: #5a7386;
+    font-size: 0.9rem;
+    margin: 0 0 0.5rem;
+  }
+</style>
+{% endblock extra_head %}
+
+{% block content %}
+{% load prose_demo %}
+<section class="edit-panel">
+  <h1>{{ page_title }}</h1>
+  <p><a href="{% if back_url_kwargs %}{% url back_url_name back_url_kwargs.pk %}{% else %}{% url back_url_name %}{% endif %}">{{ back_label }}</a></p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-row">
+      {{ article_form.title.label_tag }}
+      {{ article_form.title }}
+    </div>
+    {# Demo: per-field editor customization via {% prose_field %}: #}
+    {# - attachments=False: no uploads, embeds, or @ prompts #}
+    {# - theme="excerpt": sage palette from PROSE_EDITOR_FIELD_THEMES (body uses global theme) #}
+    {# - lexxy="excerpt": toolbar highlight palette + placeholder from PROSE_EDITOR_FIELD_LEXXY #}
+    <div class="form-row">
+      {{ article_form.excerpt.label_tag }}
+      <p class="field-note">
+        This field has been customized to show you the capabilities of the Lexxy
+        configuration and settings.
+      </p>
+      {% prose_field article_form.excerpt attachments=False theme="excerpt" lexxy="excerpt" %}
+    </div>
+    <div class="form-row">
+      {{ article_form.body.label_tag }}
+      {{ article_form.body }}
+    </div>
+    <p><button type="submit">{{ submit_label }}</button></p>
+  </form>
+</section>
+{% endblock content %}

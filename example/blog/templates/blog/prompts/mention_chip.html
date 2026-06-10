@@ -1,0 +1,7 @@
+<span class="mention-pill{% if menu %} mention-pill--menu{% elif editor %} mention-pill--editor{% endif %}">
+  <span class="mention-pill__avatar{% if editor %} mention-pill__avatar--control{% endif %}"{% if not editor %} aria-hidden="true"{% endif %}>
+    <span class="mention-pill__initials">{{ contributor.initials }}</span>
+    {% if editor %}<span class="mention-pill__delete-icon" aria-hidden="true"></span>{% endif %}
+  </span>
+  <span class="mention-pill__name">{{ contributor.name }}</span>
+</span>

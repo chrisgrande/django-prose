@@ -1,0 +1,68 @@
+/* Keep rendered rich text within the blog column. */
+.article-excerpt,
+.article-body,
+.comment-body {
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.article-excerpt :is(img, video, iframe, embed, object),
+.article-body :is(img, video, iframe, embed, object),
+.comment-body :is(img, video, iframe, embed, object) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.article-excerpt figure,
+.article-body figure,
+.comment-body figure {
+  max-width: 100%;
+  margin-inline: 0;
+}
+
+.article-excerpt .attachment__container,
+.article-body .attachment__container,
+.comment-body .attachment__container {
+  max-width: 100%;
+}
+
+.article-excerpt .attachment--preview img,
+.article-body .attachment--preview img,
+.comment-body .attachment--preview img {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.article-excerpt .attachment--embed iframe,
+.article-body .attachment--embed iframe,
+.comment-body .attachment--embed iframe {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border: 0;
+}
+
+.article-excerpt table,
+.article-body table,
+.comment-body table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.article-excerpt pre,
+.article-body pre,
+.comment-body pre {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.article-body,
+.comment-body {
+  margin: 1rem 0;
+  line-height: 1.5;
+}

@@ -1,0 +1,24 @@
+{% firstof attachment.metadata.title attachment.filename "YouTube video" as iframe_title %}
+{% firstof attachment.metadata.title attachment.filename "" as caption_text %}
+<figure class="attachment attachment--embed attachment--preview attachment--youtube django-prose-youtube-embed" data-prose-sgid="{{ attachment.attachable_sgid }}" data-prose-content-type="{{ attachment.content_type }}"{% if caption_text %} data-prose-caption="{{ caption_text }}"{% endif %}>
+  <div class="attachment__container django-prose-youtube-embed__media">
+    <iframe
+      src="https://www.youtube-nocookie.com/embed/{{ attachment.metadata.video_id }}"
+      title="{{ iframe_title }}"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen
+      referrerpolicy="strict-origin-when-cross-origin"
+      loading="lazy"
+      width="560"
+      height="315"
+      frameborder="0"
+    ></iframe>
+  </div>
+  <figcaption class="attachment__caption django-prose-youtube-caption">
+    <textarea
+      class="django-prose-youtube-caption__input"
+      rows="1"
+      placeholder="Add caption…"
+    ></textarea>
+  </figcaption>
+</figure>

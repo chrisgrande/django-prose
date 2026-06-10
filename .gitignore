@@ -6,4 +6,10 @@ build/
 dist/
 media/
 
+.venv/
+venv/
+env/
+
 node_modules/
+
+example/staticfiles/

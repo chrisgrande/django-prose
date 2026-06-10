@@ -1,0 +1,8 @@
+<figure class="attachment attachment--preview attachment--{{ attachment.filename|default:"file" }}">
+  <div class="attachment__container">
+    <img src="{{ attachment.url }}" alt="{{ attachment.filename }}" draggable="false">
+  </div>
+  <figcaption class="attachment__caption">
+    <span class="attachment__name">{{ attachment.filename }}</span>
+  </figcaption>
+</figure>

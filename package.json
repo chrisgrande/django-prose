@@ -1,18 +1,21 @@
 {
   "name": "django-prose",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Wonderful rich-text editing for Django",
-  "main": "prose/static/prose/editor.js",
+  "main": "prose/static/prose/lexxy-loader.js",
   "repository": "https://github.com/withlogicco/django-prose.git",
   "author": "Paris Kasidiaris <paris@withlogic.co>",
   "license": "MIT",
   "private": true,
   "devDependencies": {
+    "@37signals/lexxy": "0.9.18",
+    "esbuild": "^0.25.0",
     "prettier": "3.0.2"
   },
   "scripts": {
     "prettier:base": "yarn prettier prose/static/prose",
     "lint": "yarn prettier:base --check",
-    "format": "yarn prettier:base --write"
+    "format": "yarn prettier:base --write",
+    "vendor:lexxy": "node scripts/vendor-lexxy.mjs"
   }
 }

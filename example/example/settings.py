@@ -49,6 +49,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "prose.middleware.ProseEditorMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -116,8 +117,6 @@ TIME_ZONE = "UTC"
 
 USE_I18N = True
 
-USE_L10N = True
-
 USE_TZ = True
 
 
@@ -125,9 +124,65 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.1/howto/static-files/
 
 STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 
 MEDIA_ROOT = os.getenv("MEDIA_ROOT", "/mnt/media")
 MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
 
-DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+LOGIN_URL = "blog_login"
+LOGIN_REDIRECT_URL = "blog_index"
+
+# Demo-only Lexxy editor chrome (see README: PROSE_EDITOR_THEME).
+# Warm off-white canvas and slate-blue accents match the blog header links (#1a5276).
+# Applied automatically to every RichTextEditor (article edit, comments).
+PROSE_EDITOR_THEME = {
+    "background": "#faf8f5",
+    "toolbar_background": "#eef4f8",
+    "border": "#c5d4de",
+    "icon": "#2c5f7a",
+    "text": "#1a2e3b",
+    "text_subtle": "#5a7386",
+    "accent": "#1a5276",
+    "focus": "#1a5276",
+    "selected": "#e3f0f7",
+    "link": "#1a5276",
+    "radius": "6px",
+}
+
+# Per-field theme overrides for the demo (see article_edit.html {% prose_field %}).
+# Keys are passed as theme="…" on the template tag; values merge over PROSE_EDITOR_THEME.
+PROSE_EDITOR_FIELD_THEMES = {
+    "excerpt": {
+        "background": "#f4f8f4",
+        "toolbar_background": "#e4ede4",
+        "border": "#b8ccb8",
+        "icon": "#3d5c3d",
+        "text": "#1a2e1a",
+        "text_subtle": "#5a735a",
+        "accent": "#2d6a2d",
+        "focus": "#2d6a2d",
+        "selected": "#dceadc",
+        "link": "#2d6a2d",
+        "radius": "4px",
+    },
+}
+
+# Per-field Lexxy overrides for the demo (see article_edit.html {% prose_field %}).
+# Keys are passed as lexxy="…" on the template tag; values merge over PROSE_LEXXY_EDITOR.
+PROSE_EDITOR_FIELD_LEXXY = {
+    "excerpt": {
+        "placeholder": "A brief summary for the article listing…",
+        "highlight": {
+            "buttons": {
+                "color": ["var(--highlight-3)", "var(--highlight-5)"],
+                "background-color": [
+                    "var(--highlight-bg-1)",
+                    "var(--highlight-bg-2)",
+                ],
+            },
+        },
+    },
+}

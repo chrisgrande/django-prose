@@ -1,21 +1,897 @@
+/*
+ * Layout and admin isolation only — typography, tables, and toolbar chrome come
+ * from Lexxy package CSS (lexxy-variables, lexxy-content, lexxy-editor).
+ */
 .django-prose-editor-container {
-  overflow: auto;
+  overflow-x: clip;
+  position: relative;
+  /* Django admin lays out fields with .flex-container; Lexxy 0.9.14+ uses
+     container-type: inline-size on lexxy-editor, so the editor shrinks to
+     zero width unless this wrapper grows in the flex row. */
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
 
-form .aligned .django-prose-editor-container trix-editor ul {
-  margin-left: initial;
-  padding-left: initial;
+.django-prose-editor-container.lexxy-editor-host {
+  /* Contain admin form/table rules; Lexxy styles live on lexxy-editor / .lexxy-content. */
+  isolation: isolate;
 }
 
-form .aligned .django-prose-editor-container trix-editor ol li,
-form .aligned .django-prose-editor-container trix-editor ul li {
-  list-style-position: inside;
+/* Read-only mode (PROSE_LEXXY_EDITOR editable=False / data-prose-editable="false") */
+.django-prose-lexxy-host--readonly lexxy-editor.django-prose-lexxy--readonly,
+.django-prose-lexxy-host--readonly lexxy-editor[data-prose-editable="false"] {
+  opacity: 0.95;
 }
 
-form .aligned .django-prose-editor-container trix-editor ul li {
-  list-style-type: initial;
+.django-prose-lexxy-host--readonly lexxy-toolbar,
+.django-prose-lexxy--readonly lexxy-toolbar {
+  display: none !important;
 }
 
-.django-prose-editor-container trix-toolbar .trix-button {
-  background: #fff !important;
+.django-prose-lexxy-host--readonly .lexxy-editor__content,
+.django-prose-lexxy--readonly .lexxy-editor__content {
+  cursor: default;
+}
+
+.django-prose-editor-container lexxy-editor {
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 100%;
+  /*
+   * Lexxy sets overflow: visible on lexxy-editor (lexxy-editor.css) so popovers
+   * can escape; that lets themed toolbar backgrounds spill past the rounded
+   * outer border. Clip children to the editor's border-radius instead.
+   */
+  overflow: clip;
+}
+
+/*
+ * Django admin can set display on table elements inside forms. Restore table layout
+ * so Lexxy package rules for .lexxy-content table apply.
+ */
+.django-prose-editor-container.lexxy-editor-host
+  lexxy-editor
+  .lexxy-editor__content.lexxy-content
+  .lexxy-content__table-wrapper
+  table {
+  display: table;
+}
+
+.django-prose-editor-container.lexxy-editor-host
+  lexxy-editor
+  .lexxy-editor__content.lexxy-content
+  .lexxy-content__table-wrapper
+  :is(thead, tbody) {
+  display: table-row-group;
+}
+
+.django-prose-editor-container.lexxy-editor-host
+  lexxy-editor
+  .lexxy-editor__content.lexxy-content
+  .lexxy-content__table-wrapper
+  tr {
+  display: table-row;
+}
+
+.django-prose-editor-container.lexxy-editor-host
+  lexxy-editor
+  .lexxy-editor__content.lexxy-content
+  .lexxy-content__table-wrapper
+  :is(th, td) {
+  display: table-cell;
+}
+
+.django-prose-lexxy figure.django-prose-attachment {
+  margin: 0.75em 0;
+}
+
+.django-prose-lexxy figure.django-prose-attachment--image img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* File / PDF / Office attachments — pill UI in editor and on display */
+.django-prose-lexxy figure.django-prose-file-pill,
+figure.django-prose-file-pill {
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 28rem;
+  margin: 0.5em 0;
+  padding: 0;
+  text-align: start;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__card,
+figure.django-prose-file-pill .django-prose-file-pill__card {
+  align-items: flex-start;
+  background: var(--lexxy-color-canvas, #fff);
+  border: 1px solid var(--lexxy-color-ink-lighter, #d4d4d4);
+  border-radius: var(--lexxy-radius, 0.5rem);
+  box-sizing: border-box;
+  display: flex;
+  gap: 0.75rem;
+  inline-size: 100%;
+  padding: 0.65rem 0.75rem;
+  position: relative;
+}
+
+.django-prose-lexxy
+  figure.django-prose-file-pill
+  .django-prose-file-pill__remove,
+figure.django-prose-file-pill .django-prose-file-pill__remove {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--lexxy-radius, 0.35rem);
+  color: var(--lexxy-color-ink-medium, #666);
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  inset-block-start: 0.35rem;
+  inset-inline-end: 0.35rem;
+  justify-content: center;
+  margin: 0;
+  padding: 0.2rem;
+  position: absolute;
+  z-index: 2;
+}
+
+.django-prose-lexxy
+  figure.django-prose-file-pill
+  .django-prose-file-pill__remove:hover,
+figure.django-prose-file-pill .django-prose-file-pill__remove:hover {
+  background: var(--lexxy-color-selected, rgba(0, 0, 0, 0.06));
+  color: var(--lexxy-color-ink, #111);
+}
+
+.django-prose-lexxy
+  figure.django-prose-file-pill
+  .django-prose-file-pill__remove
+  svg,
+figure.django-prose-file-pill .django-prose-file-pill__remove svg {
+  block-size: 1.1rem;
+  inline-size: 1.1rem;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__icon,
+figure.django-prose-file-pill .django-prose-file-pill__icon {
+  color: var(--lexxy-color-ink-medium, #555);
+  flex-shrink: 0;
+  margin-block-start: 0.1rem;
+}
+
+.django-prose-lexxy
+  figure.django-prose-file-pill
+  .django-prose-file-pill__icon
+  svg,
+figure.django-prose-file-pill .django-prose-file-pill__icon svg {
+  block-size: 1.75rem;
+  display: block;
+  inline-size: 1.75rem;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__body,
+figure.django-prose-file-pill .django-prose-file-pill__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-inline-size: 0;
+  padding-inline-end: 1.5rem;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__name,
+figure.django-prose-file-pill .django-prose-file-pill__name {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--lexxy-radius, 0.25rem);
+  box-sizing: border-box;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  inline-size: 100%;
+  line-height: 1.3;
+  margin: 0;
+  padding: 0.15rem 0.35rem;
+}
+
+.django-prose-lexxy
+  figure.django-prose-file-pill
+  .django-prose-file-pill__name--link,
+figure.django-prose-file-pill .django-prose-file-pill__name--link {
+  border-color: transparent;
+  display: block;
+  font-weight: 600;
+  padding: 0;
+  text-decoration: none;
+}
+
+.django-prose-lexxy
+  figure.django-prose-file-pill
+  .django-prose-file-pill__name--link:hover,
+figure.django-prose-file-pill .django-prose-file-pill__name--link:hover {
+  text-decoration: underline;
+}
+
+.django-prose-lexxy
+  figure.django-prose-file-pill
+  .django-prose-file-pill__name:focus,
+figure.django-prose-file-pill .django-prose-file-pill__name:focus {
+  background: var(--lexxy-focus-bg-color, rgba(0, 0, 0, 0.04));
+  border-color: var(--lexxy-focus-ring-color, #2684ff);
+  outline: none;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__meta,
+figure.django-prose-file-pill .django-prose-file-pill__meta {
+  color: var(--lexxy-color-ink-medium, #666);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85em;
+  gap: 0.1rem;
+  line-height: 1.25;
+  padding-inline: 0.35rem;
+}
+
+.django-prose-lexxy
+  figure.django-prose-file-pill
+  .django-prose-file-pill__filename,
+figure.django-prose-file-pill .django-prose-file-pill__filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.django-prose-lexxy figure.django-prose-file-pill .django-prose-file-pill__type,
+figure.django-prose-file-pill .django-prose-file-pill__type {
+  font-size: 0.95em;
+  opacity: 0.9;
+}
+
+.django-prose-lexxy
+  figure.django-prose-file-pill
+  .django-prose-file-pill__download,
+figure.django-prose-file-pill .django-prose-file-pill__download {
+  inset: 0;
+  position: absolute;
+  z-index: 1;
+}
+
+.django-prose-lexxy
+  prose-attachment:has(> figure.django-prose-file-pill)
+  > lexxy-node-delete-button {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/*
+ * Lexxy mounts lexxy-node-delete-button as a direct child of prose-attachment
+ * (sibling of the inner figure). Each wrapper must be the positioning context
+ * so deletes anchor to that attachment, not the whole editor.
+ */
+.django-prose-lexxy prose-attachment {
+  display: inline-block;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  position: relative;
+  vertical-align: top;
+}
+
+/*
+ * Custom inline attachables (mentions, etc.) — no inner figure. Keep them in the
+ * text flow; the block-ish wrapper defaults above force a line break when
+ * max-inline-size is 100% of the paragraph.
+ */
+.django-prose-lexxy prose-attachment:not(:has(> figure)) {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: baseline;
+  inline-size: auto;
+  max-inline-size: none;
+}
+
+/*
+ * Delete is a sibling of the inner figure. Lexxy’s default (inset-inline-start: 100%)
+ * places it outside the wrapper; anchor top-right inside each attachment box instead.
+ */
+.django-prose-lexxy
+  prose-attachment:has(> figure.attachment)
+  > lexxy-node-delete-button {
+  inset-block-start: 1ch;
+  inset-block-end: auto;
+  inset-inline-end: 1ch;
+  inset-inline-start: auto;
+  transform: none;
+}
+
+.django-prose-lexxy prose-attachment:hover > lexxy-node-delete-button,
+.django-prose-lexxy prose-attachment.node--selected > lexxy-node-delete-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.django-prose-lexxy figure.attachment--embed iframe,
+.django-prose-lexxy prose-attachment figure.attachment--embed iframe {
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border: 0;
+}
+
+/* Drop space above YouTube blocks (Lexxy .attachment padding + paragraph margins) */
+.django-prose-lexxy .lexxy-content p:has(.attachment--youtube),
+.django-prose-lexxy .lexxy-content p:has(.django-prose-youtube-embed),
+.django-prose-lexxy
+  .lexxy-content
+  p:has(prose-attachment figure.attachment--youtube),
+.django-prose-lexxy
+  .lexxy-content
+  p:has(prose-attachment figure.django-prose-youtube-embed) {
+  margin-block-start: 0;
+}
+
+.django-prose-lexxy prose-attachment:has(> figure.attachment--youtube),
+.django-prose-lexxy prose-attachment:has(> figure.django-prose-youtube-embed),
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment:has(> figure.attachment--youtube),
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment:has(> figure.django-prose-youtube-embed) {
+  margin-block-start: 0 !important;
+  padding-block-start: 0 !important;
+  padding: 0 !important;
+}
+
+/* YouTube embed in Lexxy editor (scoped under .lexxy-content to beat package rules) */
+.django-prose-lexxy .lexxy-content figure.attachment--youtube,
+.django-prose-lexxy .lexxy-content figure.django-prose-youtube-embed,
+.django-prose-lexxy .lexxy-content prose-attachment figure.attachment--youtube,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.django-prose-youtube-embed,
+.django-prose-lexxy figure.attachment--youtube,
+.django-prose-lexxy figure.django-prose-youtube-embed,
+.django-prose-lexxy prose-attachment figure.attachment--youtube,
+.django-prose-lexxy prose-attachment figure.django-prose-youtube-embed {
+  --lexxy-attachment-gap: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-block-start: 0 !important;
+  margin-block-end: 0.15em;
+  margin-inline: auto;
+  padding: 0 !important;
+  padding-block-start: 0 !important;
+  background: transparent;
+}
+
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.attachment--youtube.attachment,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.django-prose-youtube-embed.attachment,
+.django-prose-lexxy prose-attachment figure.attachment--youtube.attachment,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed.attachment {
+  padding: 0 !important;
+  padding-block-start: 0 !important;
+}
+
+.django-prose-lexxy figure.attachment--youtube:hover:not(.node--selected),
+.django-prose-lexxy
+  figure.django-prose-youtube-embed:hover:not(.node--selected),
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube:hover:not(.node--selected),
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed:hover:not(.node--selected) {
+  outline: 2px solid
+    color-mix(in srgb, var(--lexxy-focus-ring-color, #2684ff) 22%, transparent);
+  outline-offset: 1px;
+}
+
+.django-prose-lexxy figure.attachment--youtube .attachment__container,
+.django-prose-lexxy figure.django-prose-youtube-embed .attachment__container,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-embed__media,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  .attachment__container,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  .attachment__container,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-embed__media {
+  position: relative;
+  line-height: 0;
+  margin: 0;
+  margin-block-start: 0 !important;
+  padding: 0;
+  padding-block-start: 0 !important;
+}
+
+.django-prose-lexxy figure.attachment--youtube .attachment__container iframe,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed
+  .attachment__container
+  iframe,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  .attachment__container
+  iframe,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  .attachment__container
+  iframe {
+  display: block;
+  margin: 0;
+  margin-block-start: 0 !important;
+  padding-block-start: 0 !important;
+  vertical-align: top;
+}
+
+/* Override Lexxy .attachment__caption { padding: 1ch } and preview caption spacing */
+.django-prose-lexxy
+  .lexxy-content
+  figure.attachment--youtube
+  .attachment__caption,
+.django-prose-lexxy
+  .lexxy-content
+  figure.attachment--youtube.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  .lexxy-content
+  figure.attachment--youtube
+  figcaption.django-prose-youtube-caption,
+.django-prose-lexxy
+  .lexxy-content
+  figure.django-prose-youtube-embed
+  .attachment__caption,
+.django-prose-lexxy
+  .lexxy-content
+  figure.django-prose-youtube-embed.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  .lexxy-content
+  figure.django-prose-youtube-embed
+  figcaption.django-prose-youtube-caption,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.attachment--youtube
+  .attachment__caption,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.attachment--youtube.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.attachment--youtube
+  figcaption.django-prose-youtube-caption,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.django-prose-youtube-embed
+  .attachment__caption,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.django-prose-youtube-embed.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.django-prose-youtube-embed
+  figcaption.django-prose-youtube-caption,
+.django-prose-lexxy figure.attachment--youtube .attachment__caption,
+.django-prose-lexxy
+  figure.attachment--youtube.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  figure.attachment--youtube
+  figcaption.django-prose-youtube-caption,
+.django-prose-lexxy figure.attachment--youtube .django-prose-youtube-caption,
+.django-prose-lexxy figure.django-prose-youtube-embed .attachment__caption,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed
+  figcaption.django-prose-youtube-caption,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-caption,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  .attachment__caption,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  figcaption.django-prose-youtube-caption,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  .django-prose-youtube-caption,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  .attachment__caption,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  figcaption.django-prose-youtube-caption,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-caption {
+  margin: 0 !important;
+  margin-block: 0 !important;
+  margin-block-start: 0 !important;
+  margin-block-end: 0 !important;
+  margin-inline: 0 !important;
+  padding: 0 !important;
+  padding-block: 0 !important;
+  padding-block-end: 0 !important;
+  padding-inline: 0 !important;
+  border: 0;
+  font-size: 0.9em;
+  line-height: 1.05;
+  pointer-events: auto;
+  text-align: center;
+  inline-size: 100%;
+  max-inline-size: 560px;
+}
+
+.django-prose-lexxy
+  .lexxy-content
+  figure.attachment--youtube.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  .lexxy-content
+  figure.django-prose-youtube-embed.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.attachment--youtube.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.django-prose-youtube-embed.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  figure.attachment--youtube.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube.attachment--preview
+  .attachment__caption,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed.attachment--preview
+  .attachment__caption {
+  padding-block-start: 0 !important;
+  padding-block-end: 0 !important;
+}
+
+.django-prose-lexxy
+  .lexxy-content
+  figure.attachment--youtube
+  .django-prose-youtube-caption__input,
+.django-prose-lexxy
+  .lexxy-content
+  figure.attachment--youtube
+  figcaption.django-prose-youtube-caption
+  textarea,
+.django-prose-lexxy
+  .lexxy-content
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-caption__input,
+.django-prose-lexxy
+  .lexxy-content
+  figure.django-prose-youtube-embed
+  figcaption.django-prose-youtube-caption
+  textarea,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.attachment--youtube
+  .django-prose-youtube-caption__input,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.attachment--youtube
+  figcaption.django-prose-youtube-caption
+  textarea,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-caption__input,
+.django-prose-lexxy
+  .lexxy-content
+  prose-attachment
+  figure.django-prose-youtube-embed
+  figcaption.django-prose-youtube-caption
+  textarea,
+.django-prose-lexxy
+  figure.attachment--youtube
+  .django-prose-youtube-caption__input,
+.django-prose-lexxy
+  figure.attachment--youtube
+  figcaption.django-prose-youtube-caption
+  textarea,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-caption__input,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed
+  figcaption.django-prose-youtube-caption
+  textarea,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  .django-prose-youtube-caption__input,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  figcaption.django-prose-youtube-caption
+  textarea,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-caption__input,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  figcaption.django-prose-youtube-caption
+  textarea,
+.django-prose-lexxy figure.attachment--youtube figcaption textarea,
+.django-prose-lexxy figure.django-prose-youtube-embed figcaption textarea,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  figcaption
+  textarea,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  figcaption
+  textarea {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 560px;
+  min-height: 0;
+  height: auto;
+  margin: 0 auto;
+  display: block;
+  padding: 0 !important;
+  padding-block: 0 !important;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9em;
+  line-height: 1.05;
+  text-align: center;
+  resize: none;
+  overflow: hidden;
+  pointer-events: auto;
+  cursor: text;
+  field-sizing: content;
+}
+
+.django-prose-lexxy
+  figure.attachment--youtube
+  .django-prose-youtube-caption__input:focus,
+.django-prose-lexxy
+  figure.attachment--youtube
+  figcaption.django-prose-youtube-caption
+  textarea:focus,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-caption__input:focus,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed
+  figcaption.django-prose-youtube-caption
+  textarea:focus,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  .django-prose-youtube-caption__input:focus,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  figcaption.django-prose-youtube-caption
+  textarea:focus,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-caption__input:focus,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  figcaption.django-prose-youtube-caption
+  textarea:focus,
+.django-prose-lexxy figure.attachment--youtube figcaption textarea:focus,
+.django-prose-lexxy figure.django-prose-youtube-embed figcaption textarea:focus,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  figcaption
+  textarea:focus,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  figcaption
+  textarea:focus {
+  outline: 2px solid var(--lexxy-focus-ring-color, #2684ff);
+  outline-offset: 0;
+  background: var(--lexxy-focus-bg-color, rgba(0, 0, 0, 0.04));
+  padding: 0;
+}
+
+.django-prose-lexxy
+  figure.attachment--youtube
+  .django-prose-youtube-caption__input::placeholder,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-caption__input::placeholder,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  .django-prose-youtube-caption__input::placeholder,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  .django-prose-youtube-caption__input::placeholder,
+.django-prose-lexxy figure.attachment--youtube figcaption textarea::placeholder,
+.django-prose-lexxy
+  figure.django-prose-youtube-embed
+  figcaption
+  textarea::placeholder,
+.django-prose-lexxy
+  prose-attachment
+  figure.attachment--youtube
+  figcaption
+  textarea::placeholder,
+.django-prose-lexxy
+  prose-attachment
+  figure.django-prose-youtube-embed
+  figcaption
+  textarea::placeholder {
+  opacity: 0.55;
+}
+
+/* Centered caption on published content */
+figure.attachment--youtube .django-prose-youtube-caption {
+  text-align: center;
+  margin-top: 0.5em;
+}
+
+figure.attachment--youtube .django-prose-youtube-caption .attachment__name {
+  display: inline-block;
+}
+
+lexxy-link-dropdown .django-prose-embed-button[hidden] {
+  display: none !important;
+}
+
+lexxy-link-dropdown .django-prose-embed-button:not([hidden]) {
+  font-weight: 600;
+}
+
+/*
+ * Lexxy sets dropdown action buttons to inline-size: 100%, which makes three
+ * buttons overlap in one row. When Embed is shown, use a 2-row grid instead.
+ */
+lexxy-link-dropdown .django-prose-link-actions--embed {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--lexxy-toolbar-spacing, 0.25rem);
+  align-content: start;
+  min-inline-size: 0;
+  flex: 1 1 auto;
+}
+
+lexxy-link-dropdown
+  .django-prose-link-actions--embed
+  .django-prose-embed-button:not([hidden]) {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  inline-size: 100%;
+  width: 100%;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+}
+
+lexxy-link-dropdown .django-prose-link-actions--embed button[type="submit"] {
+  grid-column: 1;
+  grid-row: 2;
+  inline-size: auto;
+  width: 100%;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+}
+
+lexxy-link-dropdown .django-prose-link-actions--embed button[value="unlink"] {
+  grid-column: 2;
+  grid-row: 2;
+  inline-size: auto;
+  width: 100%;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+}
+
+.django-prose-upload-error {
+  align-items: flex-start;
+  background: var(--lexxy-color-red, #dc2626);
+  border-radius: var(--lexxy-radius, 0.5rem);
+  box-shadow: var(--lexxy-shadow, 0 4px 12px rgba(0, 0, 0, 0.15));
+  box-sizing: border-box;
+  color: #fff;
+  display: flex;
+  gap: 0.75rem;
+  inset-block-end: 0.75rem;
+  inset-inline: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  position: absolute;
+  z-index: calc(var(--lexxy-z-popup, 1000) + 1);
+}
+
+.django-prose-upload-error__text {
+  flex: 1 1 auto;
+  font-size: 0.9em;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.django-prose-upload-error__dismiss {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  flex: 0 0 auto;
+  font-size: 1.25rem;
+  line-height: 1;
+  margin: 0;
+  opacity: 0.85;
+  padding: 0;
+}
+
+.django-prose-upload-error__dismiss:hover {
+  opacity: 1;
 }

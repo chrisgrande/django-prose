@@ -1,0 +1,134 @@
+.mention-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.12rem 0.55rem 0.12rem 0.15rem;
+  background: #e8eaed;
+  border-radius: 999px;
+  font-size: 0.875em;
+  line-height: 1.2;
+  vertical-align: baseline;
+  white-space: nowrap;
+  margin: 0;
+  max-inline-size: none;
+}
+
+.mention-pill__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  background: #5d6d7e;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.mention-pill__avatar--control {
+  cursor: pointer;
+}
+
+.mention-pill__initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mention-pill__delete-icon {
+  display: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+  background: center / contain no-repeat url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23ffffff'%3E%3Cpath d='M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z'/%3E%3C/svg%3E");
+}
+
+.mention-pill__name {
+  color: #2c3e50;
+  font-weight: 500;
+}
+
+.mention-pill--menu {
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+}
+
+.lexxy-prompt-menu__item .mention-pill__avatar {
+  width: var(--lexxy-prompt-avatar-size, 24px);
+  height: var(--lexxy-prompt-avatar-size, 24px);
+  font-size: 0.55rem;
+}
+
+.lexxy-editor__content .mention-pill,
+.django-prose-lexxy-host .mention-pill {
+  user-select: none;
+}
+
+/* Editor mention attachments — stay inline in the paragraph text flow */
+.django-prose-lexxy-host .django-prose-lexxy prose-attachment:has(.mention-pill--editor),
+.django-prose-lexxy-host .django-prose-lexxy .lexxy-editor__content prose-attachment:has(.mention-pill--editor),
+.django-prose-lexxy prose-attachment:has(.mention-pill--editor),
+.django-prose-lexxy .lexxy-editor__content prose-attachment:has(.mention-pill--editor),
+.django-prose-lexxy-host prose-attachment[content-type="application/vnd.prose.mention"],
+.django-prose-lexxy prose-attachment[content-type="application/vnd.prose.mention"] {
+  display: inline-flex !important;
+  align-items: center;
+  vertical-align: baseline !important;
+  inline-size: auto !important;
+  max-inline-size: none !important;
+  line-height: inherit;
+  position: static;
+  margin: 0;
+  padding: 0;
+  white-space: normal;
+}
+
+.django-prose-lexxy-host .django-prose-lexxy prose-attachment:has(.mention-pill--editor) > lexxy-node-delete-button,
+.django-prose-lexxy-host .django-prose-lexxy .lexxy-editor__content prose-attachment:has(.mention-pill--editor) > lexxy-node-delete-button,
+.django-prose-lexxy prose-attachment:has(.mention-pill--editor) > lexxy-node-delete-button,
+.django-prose-lexxy .lexxy-editor__content prose-attachment:has(.mention-pill--editor) > lexxy-node-delete-button,
+.django-prose-lexxy-host prose-attachment[content-type="application/vnd.prose.mention"] > lexxy-node-delete-button,
+.django-prose-lexxy prose-attachment[content-type="application/vnd.prose.mention"] > lexxy-node-delete-button {
+  display: none !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+.django-prose-lexxy prose-attachment:has(.mention-pill--editor).node--selected,
+.django-prose-lexxy .lexxy-editor__content prose-attachment:has(.mention-pill--editor).node--selected {
+  outline: none;
+}
+
+.django-prose-lexxy prose-attachment:has(.mention-pill--editor).node--selected .mention-pill--editor,
+.django-prose-lexxy .lexxy-editor__content prose-attachment:has(.mention-pill--editor).node--selected .mention-pill--editor {
+  box-shadow: 0 0 0 2px var(--lexxy-focus-ring-color, #4a90d9);
+}
+
+.django-prose-lexxy prose-attachment.node--selected .mention-pill--editor .mention-pill__initials,
+.django-prose-lexxy .lexxy-editor__content prose-attachment.node--selected .mention-pill--editor .mention-pill__initials {
+  display: none;
+}
+
+.django-prose-lexxy prose-attachment.node--selected .mention-pill--editor .mention-pill__delete-icon,
+.django-prose-lexxy .lexxy-editor__content prose-attachment.node--selected .mention-pill--editor .mention-pill__delete-icon {
+  display: block;
+}
+
+.django-prose-lexxy prose-attachment.node--selected .mention-pill--editor .mention-pill__avatar--control,
+.django-prose-lexxy .lexxy-editor__content prose-attachment.node--selected .mention-pill--editor .mention-pill__avatar--control {
+  background: #c0392b;
+}
+
+.django-prose-lexxy prose-attachment.node--selected .mention-pill--editor .mention-pill__avatar--control:hover,
+.django-prose-lexxy .lexxy-editor__content prose-attachment.node--selected .mention-pill--editor .mention-pill__avatar--control:hover {
+  background: #a93226;
+}

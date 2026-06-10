@@ -1,0 +1,21 @@
+{% firstof attachment.metadata.title attachment.filename "YouTube video" as iframe_title %}
+<figure class="attachment attachment--embed attachment--youtube">
+  <div class="attachment__container">
+    <iframe
+      src="https://www.youtube-nocookie.com/embed/{{ attachment.metadata.video_id }}"
+      title="{{ iframe_title }}"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      allowfullscreen
+      referrerpolicy="strict-origin-when-cross-origin"
+      loading="lazy"
+      width="560"
+      height="315"
+      frameborder="0"
+    ></iframe>
+  </div>
+  {% if attachment.metadata.title or attachment.filename %}
+  <figcaption class="attachment__caption django-prose-youtube-caption">
+    <span class="attachment__name">{{ attachment.metadata.title|default:attachment.filename }}</span>
+  </figcaption>
+  {% endif %}
+</figure>

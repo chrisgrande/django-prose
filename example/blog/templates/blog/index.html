@@ -4,14 +4,21 @@
 {% block description %}Read {{ articles.count }} in this blog built with Django Prose{% endblock description %}
 
 {% block content %}
+{% if user.is_authenticated %}
+  <p><a href="{% url 'blog_article_create' %}">Write a new post</a></p>
+{% endif %}
 <ul>
   {% for article in articles %}
     <li>
-      <h2>{{ article.title }}</h2>
+      <h2><a href="{% url 'blog_article' article.pk %}">{{ article.title }}</a></h2>
+      <p class="article-meta">By {{ article.author.username }}</p>
       {% if article.excerpt %}
-        <p>{{ article.excerpt | safe }}</p>
+        <div>{{ article.excerpt | safe }}</div>
       {% endif %}
       <a href="{% url 'blog_article' article.pk %}">Read more</a>
+      {% if user.is_authenticated and user == article.author %}
+        · <a href="{% url 'blog_article_edit' article.pk %}">Edit your post</a>
+      {% endif %}
     </li>
   {% empty %}
     <li>No articles written yet!</li>

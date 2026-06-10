@@ -1,0 +1,12 @@
+<figure class="attachment attachment--file django-prose-file-pill django-prose-file-pill--display">
+  <div class="django-prose-file-pill__card">
+    <span class="django-prose-file-pill__icon">{% include "prose/attachments/file_icon.html" %}</span>
+    <div class="django-prose-file-pill__body">
+      <a href="{{ attachment.download_url }}" class="django-prose-file-pill__name django-prose-file-pill__name--link">{{ attachment.filename }}</a>
+      <span class="django-prose-file-pill__meta">
+        <span class="django-prose-file-pill__filename">{{ attachment.original_filename }}</span>
+        <span class="django-prose-file-pill__type">{{ attachment.file_type_label }}</span>
+      </span>
+    </div>
+  </div>
+</figure>
