@@ -8,7 +8,7 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
-    "@37signals/lexxy": "0.9.14-beta",
+    "@37signals/lexxy": "0.9.18",
     "esbuild": "^0.25.0",
     "prettier": "3.0.2"
   },
