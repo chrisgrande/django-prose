@@ -105,9 +105,7 @@ class AttachmentTypesTests(TestCase):
         self.assertTrue(matches_permitted_type("image/png", "photo.png", permitted))
 
     def test_normalize_upload_content_type_for_office_zip(self):
-        sheet_mime = (
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        sheet_mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         self.assertEqual(
             normalize_upload_content_type("application/zip", "report.xlsx"),
             sheet_mime,
@@ -274,7 +272,10 @@ class EmbedUrlViewTests(TestCase):
     def setUp(self):
         self.factory = RequestFactory()
 
-    @patch("prose.embeds.youtube.fetch_youtube_title", return_value="Never Gonna Give You Up")
+    @patch(
+        "prose.embeds.youtube.fetch_youtube_title",
+        return_value="Never Gonna Give You Up",
+    )
     def test_youtube_embed(self, _mock_title):
         request = self.factory.post(
             "/prose/embed/",
@@ -607,7 +608,7 @@ class ContentTests(TestCase):
         html = (
             f'<p><prose-attachment sgid="{sgid}">'
             '<figure class="attachment--youtube">'
-            '<figcaption><span>Video Title</span></figcaption>'
+            "<figcaption><span>Video Title</span></figcaption>"
             "</figure></prose-attachment></p>"
             "<p>Video Title</p>"
         )
@@ -921,9 +922,7 @@ class ContentTests(TestCase):
         )
         self.assertEqual(Attachment.objects.count(), 2)
 
-        doc.content = (
-            f'<p><prose-attachment sgid="{kept_sgid}"></prose-attachment></p>'
-        )
+        doc.content = f'<p><prose-attachment sgid="{kept_sgid}"></prose-attachment></p>'
         doc.save()
 
         self.assertTrue(Attachment.objects.filter(pk=kept.pk).exists())
@@ -1000,9 +999,7 @@ class ContentTests(TestCase):
         sync_attachments_for_instance(doc, "content", doc.content)
         self.assertEqual(Attachment.objects.count(), 2)
 
-        doc.content = (
-            f'<p><prose-attachment sgid="{kept_sgid}"></prose-attachment></p>'
-        )
+        doc.content = f'<p><prose-attachment sgid="{kept_sgid}"></prose-attachment></p>'
         doc.save()
 
         self.assertTrue(Attachment.objects.filter(pk=kept.pk).exists())
@@ -1194,7 +1191,9 @@ class TrixLegacyAttachmentMigrationTests(TestCase):
     def test_hydrate_creates_attachment_and_prose_attachment_for_trix_figure(self):
         storage_path = self._save_prose_file("prose/2024/06/01/legacy.jpg")
         media_url = f"/media/{storage_path}"
-        trix_html = f"<p>{self._trix_image_figure(media_url, caption='Legacy photo')}</p>"
+        trix_html = (
+            f"<p>{self._trix_image_figure(media_url, caption='Legacy photo')}</p>"
+        )
 
         with self.settings(MEDIA_ROOT=self._media_root, MEDIA_URL="/media/"):
             self.assertEqual(Attachment.objects.count(), 0)
@@ -1268,7 +1267,7 @@ class TrixLegacyAttachmentMigrationTests(TestCase):
         storage_path = self._save_prose_file("prose/2024/06/01/report.pdf", b"%PDF-1.4")
         media_url = f"/media/{storage_path}"
         trix_html = (
-            "<p><figure class=\"attachment attachment--file\">"
+            '<p><figure class="attachment attachment--file">'
             f'<a href="{media_url}?content-disposition=attachment">report.pdf</a>'
             "<figcaption><span>Quarterly report</span></figcaption>"
             "</figure></p>"
@@ -1375,7 +1374,11 @@ class CleanupAbandonedAttachmentsTests(TestCase):
 
         self.assertTrue(Attachment.objects.filter(pk=abandoned.pk).exists())
         self.assertEqual(
-            len(cleanup_abandoned_attachments(minimum_age=timedelta(hours=0), dry_run=True)),
+            len(
+                cleanup_abandoned_attachments(
+                    minimum_age=timedelta(hours=0), dry_run=True
+                )
+            ),
             1,
         )
 
@@ -1470,7 +1473,8 @@ class InlineAttachablePromptTests(TestCase):
             self.assertIn("<em>Jane Doe</em>", rendered)
 
             hydrated = hydrate_editor_attachments(stored)
-            self.assertIn("<em>Jane Doe</em>", hydrated)
+            inner = escape(person.render_attachment_html(context="editor"), quote=True)
+            self.assertIn(f'content="{inner}"', hydrated)
             self.assertIn("prose-attachment", hydrated)
             self.assertRegex(hydrated, r'<prose-attachment\b[^>]*\bcontent="')
             self.assertNotIn(

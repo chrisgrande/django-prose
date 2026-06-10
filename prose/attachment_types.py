@@ -118,23 +118,24 @@ def matches_permitted_type(content_type, filename, permitted_types):
     if inferred and any(_pattern_matches(inferred, p) for p in permitted_types):
         return True
     if not ct and not inferred:
-        return any(
-            p in ("application/*", "*/*")
-            for p in permitted_types
-        )
+        return any(p in ("application/*", "*/*") for p in permitted_types)
     return False
 
 
 def normalize_upload_content_type(content_type, filename):
     """
-    Browsers often send application/zip or an empty type for Office files; prefer
-  the extension when the declared type is missing or generic.
+      Browsers often send application/zip or an empty type for Office files; prefer
+    the extension when the declared type is missing or generic.
     """
     ct = (content_type or "").lower().strip()
     inferred = mime_from_filename(filename)
     if not inferred:
         return ct
-    if not ct or ct in ("application/octet-stream", "application/zip", "binary/octet-stream"):
+    if not ct or ct in (
+        "application/octet-stream",
+        "application/zip",
+        "binary/octet-stream",
+    ):
         return inferred
     return ct
 

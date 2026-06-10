@@ -147,7 +147,9 @@ class RichTextEditorThemeWidgetTests(TestCase):
     def test_widget_context_includes_theme_and_lexxy(self):
         widget = RichTextEditor()
         context = widget.get_context("body", "", {"id": "id_body"})
-        self.assertIn("--lexxy-color-canvas: #abcdef", context["widget"]["editor_theme_css"])
+        self.assertIn(
+            "--lexxy-color-canvas: #abcdef", context["widget"]["editor_theme_css"]
+        )
         self.assertIn(
             "django-prose-theme-host--id_body",
             context["widget"]["theme_host_class"],
@@ -164,12 +166,16 @@ class RichTextEditorThemeWidgetTests(TestCase):
             ".django-prose-editor-container.django-prose-theme-host--id_excerpt",
             ctx_a["widget"]["editor_theme_css"],
         )
-        self.assertIn("--lexxy-color-canvas: #aaaaaa", ctx_a["widget"]["editor_theme_css"])
+        self.assertIn(
+            "--lexxy-color-canvas: #aaaaaa", ctx_a["widget"]["editor_theme_css"]
+        )
         self.assertIn(
             ".django-prose-editor-container.django-prose-theme-host--id_body",
             ctx_b["widget"]["editor_theme_css"],
         )
-        self.assertIn("--lexxy-color-canvas: #bbbbbb", ctx_b["widget"]["editor_theme_css"])
+        self.assertIn(
+            "--lexxy-color-canvas: #bbbbbb", ctx_b["widget"]["editor_theme_css"]
+        )
 
     def test_widget_lexxy_override(self):
         widget = RichTextEditor(lexxy={"editable": False})

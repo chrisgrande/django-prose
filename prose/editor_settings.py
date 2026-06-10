@@ -114,6 +114,7 @@ LEXXY_OPTION_ATTRIBUTES = {
 # Not Lexxy preset keys; handled by django-prose.
 EDITABLE_ATTRIBUTE = "data-prose-editable"
 
+
 def theme_css_variable(key):
     """Resolve a PROSE_EDITOR_THEME key to a CSS custom property name."""
     if key in THEME_VARIABLE_MAP:

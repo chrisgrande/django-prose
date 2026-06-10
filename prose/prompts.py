@@ -19,7 +19,9 @@ def render_lexxy_prompt(*, trigger, name, items_html="", src=None):
     if src:
         attrs["src"] = src
     attr_str = " ".join(f'{key}="{escape(value)}"' for key, value in attrs.items())
-    return format_html("<lexxy-prompt {}>{}</lexxy-prompt>", mark_safe(attr_str), mark_safe(items_html))
+    return format_html(
+        "<lexxy-prompt {}>{}</lexxy-prompt>", mark_safe(attr_str), mark_safe(items_html)
+    )
 
 
 def render_lexxy_prompt_item(
@@ -38,9 +40,13 @@ def render_lexxy_prompt_item(
         raise TypeError("attachable must use AttachableMixin")
 
     search_text = search if search is not None else attachable.attachment_search_text()
-    menu_html = menu_html if menu_html is not None else attachable.render_prompt_menu_html()
+    menu_html = (
+        menu_html if menu_html is not None else attachable.render_prompt_menu_html()
+    )
     editor_html = (
-        editor_html if editor_html is not None else attachable.render_prompt_editor_html()
+        editor_html
+        if editor_html is not None
+        else attachable.render_prompt_editor_html()
     )
     content_type = attachable.attachment_content_type
 
@@ -125,7 +131,9 @@ class InlineAttachablePrompt:
         )
 
     def render_items(self):
-        return mark_safe("".join(str(self.render_item(item)) for item in self.iter_attachables()))
+        return mark_safe(
+            "".join(str(self.render_item(item)) for item in self.iter_attachables())
+        )
 
     def render(self):
         return render_lexxy_prompt(

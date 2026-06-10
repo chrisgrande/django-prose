@@ -100,10 +100,14 @@ class MentionCommentTests(TestCase):
             "This field has been customized to show you the capabilities of the Lexxy",
         )
         content = response.content.decode()
-        excerpt_editor = content.split('id="id_excerpt"', 1)[1].split("</lexxy-editor>", 1)[0]
+        excerpt_editor = content.split('id="id_excerpt"', 1)[1].split(
+            "</lexxy-editor>", 1
+        )[0]
         body_editor = content.split('id="id_body"', 1)[1].split("</lexxy-editor>", 1)[0]
         self.assertIn('attachments="false"', excerpt_editor)
-        self.assertIn('placeholder="A brief summary for the article listing…"', excerpt_editor)
+        self.assertIn(
+            'placeholder="A brief summary for the article listing…"', excerpt_editor
+        )
         self.assertIn("--highlight-3", excerpt_editor)
         self.assertNotIn("lexxy-prompt", excerpt_editor)
         self.assertNotIn('attachments="false"', body_editor)
@@ -203,12 +207,12 @@ class MentionCommentTests(TestCase):
             data={"form_type": "comment_create", "body": "<p>First draft</p>"},
         )
         comment = Comment.objects.get()
-        response = client.get(
-            f"/articles/{self.article.pk}/?edit_comment={comment.pk}"
-        )
+        response = client.get(f"/articles/{self.article.pk}/?edit_comment={comment.pk}")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Save comment")
-        self.assertContains(response, f'name="comment_id" value="{comment.pk}"', html=False)
+        self.assertContains(
+            response, f'name="comment_id" value="{comment.pk}"', html=False
+        )
 
     def test_non_author_cannot_see_comment_edit_button(self):
         client = Client()
@@ -231,9 +235,7 @@ class MentionCommentTests(TestCase):
         )
         comment = Comment.objects.get()
         client.login(username="reader", password="pass")
-        response = client.get(
-            f"/articles/{self.article.pk}/?edit_comment={comment.pk}"
-        )
+        response = client.get(f"/articles/{self.article.pk}/?edit_comment={comment.pk}")
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Writer comment")
         self.assertNotContains(response, "Save comment")
@@ -286,5 +288,11 @@ class MentionCommentTests(TestCase):
         self.assertContains(response, "Publish post")
         self.assertContains(response, 'name="title"', html=False)
         content = response.content.decode()
-        self.assertIn('attachments="false"', content.split('id="id_excerpt"', 1)[1].split("</lexxy-editor>", 1)[0])
-        self.assertIn("lexxy-prompt", content.split('id="id_body"', 1)[1].split("</lexxy-editor>", 1)[0])
+        self.assertIn(
+            'attachments="false"',
+            content.split('id="id_excerpt"', 1)[1].split("</lexxy-editor>", 1)[0],
+        )
+        self.assertIn(
+            "lexxy-prompt",
+            content.split('id="id_body"', 1)[1].split("</lexxy-editor>", 1)[0],
+        )

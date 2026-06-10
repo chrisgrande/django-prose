@@ -33,9 +33,9 @@ def _parse_abandoned_sgids_from_request(request):
 
 class ProseEditorMiddleware:
     """
-  Parse ``<field>_prose_abandoned_sgids`` from POST data so RichTextField sync
-  can delete uploads removed in the editor before the first save.
-  """
+    Parse ``<field>_prose_abandoned_sgids`` from POST data so RichTextField sync
+    can delete uploads removed in the editor before the first save.
+    """
 
     def __init__(self, get_response):
         self.get_response = get_response

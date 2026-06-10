@@ -55,9 +55,7 @@ class RichTextEditor(Textarea):
         context["widget"]["lexxy_attributes"] = build_lexxy_editor_attributes(
             lexxy_options
         )
-        context["widget"]["prose_editable"] = prose_editable_from_options(
-            lexxy_options
-        )
+        context["widget"]["prose_editable"] = prose_editable_from_options(lexxy_options)
         theme_host_class = theme_host_class_for_id(editor_id)
         theme = get_editor_theme(self._theme_override)
         context["widget"]["theme_host_class"] = theme_host_class

@@ -58,7 +58,7 @@
     inline-size: auto;
     padding: 0;
 
-    @media(any-hover: hover) {
+    @media (any-hover: hover) {
       &:hover:not([aria-disabled="true"]) {
         background: var(--lexxy-color-ink-lightest);
       }
@@ -78,13 +78,16 @@
   /* ------------------------------------------------------------------------ */
 
   table {
-    th, td {
+    th,
+    td {
       position: relative;
       transition: all 0.1s ease-in-out;
 
       /* Used for column and row adding visualizations */
       &:after {
-        box-shadow: 0 0 0 0 transparent, 0 0 0 0 transparent inset;
+        box-shadow:
+          0 0 0 0 transparent,
+          0 0 0 0 transparent inset;
         content: "";
         display: block;
         inset-block-start: -1px;
@@ -103,7 +106,9 @@
 
       &.lexxy-content__table-cell--focus {
         &:after {
-          box-shadow: 0 0 0 0 transparent, 0 0 0 2px var(--lexxy-color-table-cell-selected-border) inset;
+          box-shadow:
+            0 0 0 0 transparent,
+            0 0 0 2px var(--lexxy-color-table-cell-selected-border) inset;
         }
       }
 
@@ -113,15 +118,19 @@
             &[data-direction="after"] {
               &:after {
                 box-shadow:
-                  0 var(--lexxy-table-cell-add-size) 0 0 var(--lexxy-color-table-cell-add),
-                  0 calc(-1 * var(--lexxy-table-cell-add-size) - 1px) 0 0 var(--lexxy-color-table-cell-add) inset;
+                  0 var(--lexxy-table-cell-add-size) 0 0
+                    var(--lexxy-color-table-cell-add),
+                  0 calc(-1 * var(--lexxy-table-cell-add-size) - 1px) 0 0
+                    var(--lexxy-color-table-cell-add) inset;
               }
             }
             &[data-direction="before"] {
               &:after {
                 box-shadow:
-                  0 calc(-1 * var(--lexxy-table-cell-add-size) - 1px) 0 0 var(--lexxy-color-table-cell-add),
-                  0 var(--lexxy-table-cell-add-size) 0 0 var(--lexxy-color-table-cell-add) inset;
+                  0 calc(-1 * var(--lexxy-table-cell-add-size) - 1px) 0 0
+                    var(--lexxy-color-table-cell-add),
+                  0 var(--lexxy-table-cell-add-size) 0 0
+                    var(--lexxy-color-table-cell-add) inset;
               }
             }
           }
@@ -129,15 +138,19 @@
             &[data-direction="after"] {
               &:after {
                 box-shadow:
-                  var(--lexxy-table-cell-add-size) 0 0 0 var(--lexxy-color-table-cell-add),
-                  calc(-1 * var(--lexxy-table-cell-add-size) - 1px) 0 0 0 var(--lexxy-color-table-cell-add) inset;
+                  var(--lexxy-table-cell-add-size) 0 0 0
+                    var(--lexxy-color-table-cell-add),
+                  calc(-1 * var(--lexxy-table-cell-add-size) - 1px) 0 0 0
+                    var(--lexxy-color-table-cell-add) inset;
               }
             }
             &[data-direction="before"] {
               &:after {
                 box-shadow:
-                  calc(-1 * var(--lexxy-table-cell-add-size) - 1px) 0 0 0 var(--lexxy-color-table-cell-add),
-                  var(--lexxy-table-cell-add-size) 0 0 0 var(--lexxy-color-table-cell-add) inset;
+                  calc(-1 * var(--lexxy-table-cell-add-size) - 1px) 0 0 0
+                    var(--lexxy-color-table-cell-add),
+                  var(--lexxy-table-cell-add-size) 0 0 0
+                    var(--lexxy-color-table-cell-add) inset;
               }
             }
           }
@@ -146,22 +159,29 @@
           background-color: var(--lexxy-color-table-cell-remove);
           color: var(--lexxy-color-red);
 
-          &:after { box-shadow: 0 0 0 0 transparent; }
+          &:after {
+            box-shadow: 0 0 0 0 transparent;
+          }
         }
         &[data-action="toggle"] {
           background-color: var(--lexxy-color-table-cell-toggle);
 
-          &:after { box-shadow: 0 0 0 0 transparent; }
+          &:after {
+            box-shadow: 0 0 0 0 transparent;
+          }
         }
       }
     }
 
     tr.lexxy-content__table-cell--highlight[data-action="delete"] {
-      th, td {
+      th,
+      td {
         background-color: var(--lexxy-color-table-cell-remove);
         color: var(--lexxy-color-red);
 
-        &:after { box-shadow: 0 0 0 0 transparent; }
+        &:after {
+          box-shadow: 0 0 0 0 transparent;
+        }
       }
     }
 
@@ -304,7 +324,8 @@
   }
 
   .attachment:hover:not(.node--selected) {
-    outline: var(--lexxy-focus-ring-size) solid color-mix(in oklch, var(--lexxy-focus-ring-color) 30%, transparent);
+    outline: var(--lexxy-focus-ring-size) solid
+      color-mix(in oklch, var(--lexxy-focus-ring-color) 30%, transparent);
     outline-offset: var(--lexxy-focus-ring-offset);
   }
 
@@ -340,7 +361,6 @@
         padding: 1ch;
         padding-block-end: 0;
       }
-
 
       &.attachment--error {
         background: color-mix(var(--lexxy-color-red) 10%, transparent);
@@ -394,7 +414,9 @@
 
 /* Placeholder */
 :where(.lexxy-editor--empty) {
-  .lexxy-editor__content:not(:has(h1, h2, h3, h4, h5, h6, table, ul, ol, figure, .attachment-gallery))::before {
+  .lexxy-editor__content:not(
+      :has(h1, h2, h3, h4, h5, h6, table, ul, ol, figure, .attachment-gallery)
+    )::before {
     content: attr(placeholder);
     color: currentColor;
     cursor: text;
@@ -434,9 +456,15 @@
 }
 
 @keyframes blink {
-  0% { opacity: 1; }
-  60% { opacity: 1; }
-  100% { opacity: 0;}
+  0% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -641,14 +669,15 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
 
-      button span { display: none; }
+      button span {
+        display: none;
+      }
 
       .lexxy-editor__toolbar-separator {
         grid-column: 1 / -1;
       }
     }
   }
-
 
   /* --------------------------------------------------------------------------
   /* Overflow menu */
@@ -665,7 +694,6 @@
       inset-inline-end: var(--lexxy-toolbar-gap);
     }
   }
-
 
   /* --------------------------------------------------------------------------
   /* Link dropdown */
@@ -734,7 +762,10 @@
     }
 
     [data-dropdown-panel] {
-      --max-inline-size: calc(var(--max-colors) * (var(--lexxy-toolbar-button-size) + var(--lexxy-toolbar-spacing)));
+      --max-inline-size: calc(
+        var(--max-colors) *
+          (var(--lexxy-toolbar-button-size) + var(--lexxy-toolbar-spacing))
+      );
       border-start-start-radius: 0;
       gap: var(--lexxy-toolbar-spacing);
       flex-direction: column;
@@ -743,7 +774,9 @@
       max-inline-size: var(--max-inline-size);
 
       [overflowing] & {
-        border-start-start-radius: calc(var(--lexxy-radius) + var(--lexxy-toolbar-gap));
+        border-start-start-radius: calc(
+          var(--lexxy-radius) + var(--lexxy-toolbar-gap)
+        );
         inset-inline-end: var(--lexxy-toolbar-spacing);
         inset-inline-start: var(--lexxy-toolbar-spacing);
       }
@@ -755,7 +788,10 @@
       .lexxy-highlight-colors {
         display: grid;
         gap: var(--lexxy-toolbar-gap);
-        grid-template-columns: repeat(auto-fill, minmax(var(--lexxy-toolbar-button-size), 1fr));
+        grid-template-columns: repeat(
+          auto-fill,
+          minmax(var(--lexxy-toolbar-button-size), 1fr)
+        );
         max-inline-size: var(--max-inline-size);
 
         button {
@@ -766,7 +802,13 @@
             align-items: center;
             content: "Aa";
             display: flex;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family:
+              system-ui,
+              -apple-system,
+              BlinkMacSystemFont,
+              "Segoe UI",
+              Roboto,
+              sans-serif;
             inset: 0;
             justify-content: center;
             position: absolute;
@@ -823,7 +865,7 @@
       user-select: none;
     }
 
-    @media(any-hover: hover) {
+    @media (any-hover: hover) {
       &:hover:not([aria-disabled="true"]),
       [open] &:is(summary) {
         background: var(--lexxy-color-ink-medium);
@@ -866,7 +908,6 @@
     border-radius: var(--floating-tools-radius);
     padding: 0.25ch;
   }
-
 
   /* --------------------------------------------------------------------------
   /* Table Tools */
@@ -940,7 +981,11 @@
           align-items: center;
           background: var(--lexxy-color-ink);
           border-radius: var(--floating-tools-radius);
-          color: color-mix(in srgb, var(--lexxy-color-ink-inverted) 80%, transparent);
+          color: color-mix(
+            in srgb,
+            var(--lexxy-color-ink-inverted) 80%,
+            transparent
+          );
           display: flex;
           inset-inline-end: calc(var(--button-size) + 1ch);
           inset-block-start: 0;
@@ -958,7 +1003,9 @@
         &:hover {
           background-color: var(--lexxy-color-red);
 
-          svg { color: var(--lexxy-color-ink-inverted); }
+          svg {
+            color: var(--lexxy-color-ink-inverted);
+          }
 
           span {
             opacity: 1;
@@ -967,7 +1014,6 @@
       }
     }
   }
-
 
   /* --------------------------------------------------------------------------
   /* Attachment delete button */
@@ -987,7 +1033,6 @@
       background-color: var(--lexxy-color-red);
     }
   }
-
 
   /* --------------------------------------------------------------------------
   /* Language picker */
@@ -1020,7 +1065,6 @@
     }
   }
 }
-
 
 /* --------------------------------------------------------------------------
 /* Prompt */
@@ -1100,7 +1144,6 @@
   color: var(--lexxy-color-ink-medium);
   padding: var(--lexxy-prompt-padding);
 }
-
 
 /* --------------------------------------------------------------------------
 /* Custom attachments */

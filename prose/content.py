@@ -196,7 +196,9 @@ def _trix_figure_to_prose_attachment(figure_html, *, inner_context="display"):
 
     attachment = _get_or_create_attachment_for_media_url(
         media_url,
-        filename_hint=_filename_from_trix_figure(figure_html, _storage_path_from_media_url(media_url) or ""),
+        filename_hint=_filename_from_trix_figure(
+            figure_html, _storage_path_from_media_url(media_url) or ""
+        ),
     )
     if not attachment:
         return figure_html
@@ -734,9 +736,7 @@ def sync_attachments_for_instance(
 
     current_ids = attachment_ids_from_html(html)
     previous_ids = (
-        attachment_ids_from_html(previous_html)
-        if previous_html is not None
-        else set()
+        attachment_ids_from_html(previous_html) if previous_html is not None else set()
     )
     abandoned_from_content = previous_ids - current_ids
 
@@ -757,11 +757,7 @@ def sync_attachments_for_instance(
         exclude_ids=current_ids,
     )
     delete_unlinked_attachments(
-        list(
-            abandoned_from_content
-            | removed_attachment_ids
-            | session_abandoned_ids
-        )
+        list(abandoned_from_content | removed_attachment_ids | session_abandoned_ids)
     )
 
     linked = set(

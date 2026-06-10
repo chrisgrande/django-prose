@@ -6,7 +6,12 @@
 :where(.lexxy-content) {
   color: var(--lexxy-color-ink);
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     display: block;
     font-weight: bold;
     hyphens: auto;
@@ -18,12 +23,24 @@
     }
   }
 
-  h1 { font-size: 2rem; }
-  h2 { font-size: 1.5rem; }
-  h3 { font-size: 1.25rem; }
-  h4 { font-size: 1rem; }
-  h5 { font-size: 0.875rem; }
-  h6 { font-size: 0.75rem; }
+  h1 {
+    font-size: 2rem;
+  }
+  h2 {
+    font-size: 1.5rem;
+  }
+  h3 {
+    font-size: 1.25rem;
+  }
+  h4 {
+    font-size: 1rem;
+  }
+  h5 {
+    font-size: 0.875rem;
+  }
+  h6 {
+    font-size: 0.75rem;
+  }
 
   p,
   ul,
@@ -105,7 +122,8 @@
     }
   }
 
-  code, pre {
+  code,
+  pre {
     background-color: var(--lexxy-color-ink-lightest);
     border-radius: var(--lexxy-radius);
     color: var(--lexxy-color-ink);
@@ -131,7 +149,8 @@
     }
   }
 
-  ol, ul:not(.lexxy-prompt-menu) {
+  ol,
+  ul:not(.lexxy-prompt-menu) {
     margin-inline-start: calc(var(--lexxy-content-margin) * 1.5);
     padding: 0;
   }
@@ -147,7 +166,8 @@
   li.lexxy-nested-listitem {
     list-style-type: none;
 
-    ol, ul {
+    ol,
+    ul {
       margin-block-end: 0;
     }
   }
@@ -293,7 +313,6 @@
     }
   }
 
-
   /* Attachments
   /* ------------------------------------------------------------------------ */
 
@@ -326,7 +345,10 @@
 
   .attachment__icon {
     aspect-ratio: 4/5;
-    background-color: color-mix(var(--lexxy-attachment-icon-color), transparent 90%);
+    background-color: color-mix(
+      var(--lexxy-attachment-icon-color),
+      transparent 90%
+    );
     block-size: 3lh;
     border: 1px solid var(--lexxy-attachment-icon-color);
     border-block-start-width: 1.5ch;
@@ -344,7 +366,8 @@
   }
 
   .attachment--preview {
-    img, video {
+    img,
+    video {
       border-radius: var(--lexxy-radius);
       block-size: auto;
       display: block;
@@ -430,7 +453,6 @@
     padding-block: 2ch;
   }
 
-
   /* Image galleries */
   /* ------------------------------------------------------------------------ */
 
@@ -458,7 +480,6 @@
     }
   }
 
-
   /* Custom attachments such as mentions, etc. */
   /* ------------------------------------------------------------------------ */
 
@@ -485,14 +506,13 @@
     }
   }
 
-
   /* Horizontal divider */
   /* ------------------------------------------------------------------------ */
 
   .horizontal-divider {
     margin: 0;
-    margin-block-end: .5em;
-    padding: 1.5em 0 .5em;
+    margin-block-end: 0.5em;
+    padding: 1.5em 0 0.5em;
 
     hr {
       border: 0;
